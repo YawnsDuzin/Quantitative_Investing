@@ -8,12 +8,21 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Union
 from tqdm import tqdm
 
+# Initialize as None for graceful fallback
+fdr = None
+stock = None
+
 try:
     import FinanceDataReader as fdr
+except ImportError:
+    print("Warning: FinanceDataReader not installed")
+    print("Install with: pip install finance-datareader")
+
+try:
     from pykrx import stock
 except ImportError:
-    print("Warning: FinanceDataReader or pykrx not installed")
-    print("Install with: pip install finance-datareader pykrx")
+    print("Warning: pykrx not installed")
+    print("Install with: pip install pykrx")
 
 from ..utils.logger import get_logger
 from ..utils.database import get_db
@@ -50,51 +59,71 @@ class KoreanStockCollector:
         """
         logger.info(f"Fetching stock list for market: {market}")
 
+        # Check if required libraries are available
+        if self.use_pykrx and stock is None:
+            logger.warning("pykrx not available, falling back to FinanceDataReader")
+            self.use_pykrx = False
+
+        if not self.use_pykrx and fdr is None:
+            logger.error("Neither pykrx nor FinanceDataReader available")
+            return pd.DataFrame()
+
         if self.use_pykrx:
             today = datetime.now().strftime("%Y%m%d")
             stock_list = []
 
-            if market in ["KOSPI", "ALL"]:
-                kospi = stock.get_market_ticker_list(today, market="KOSPI")
-                for ticker in kospi:
-                    try:
-                        name = stock.get_market_ticker_name(ticker)
-                        stock_list.append({
-                            'symbol': ticker,
-                            'name': name,
-                            'market': 'KOSPI'
-                        })
-                    except:
-                        continue
+            try:
+                if market in ["KOSPI", "ALL"]:
+                    kospi = stock.get_market_ticker_list(today, market="KOSPI")
+                    for ticker in kospi:
+                        try:
+                            name = stock.get_market_ticker_name(ticker)
+                            stock_list.append({
+                                'symbol': ticker,
+                                'name': name,
+                                'market': 'KOSPI'
+                            })
+                        except:
+                            continue
 
-            if market in ["KOSDAQ", "ALL"]:
-                kosdaq = stock.get_market_ticker_list(today, market="KOSDAQ")
-                for ticker in kosdaq:
-                    try:
-                        name = stock.get_market_ticker_name(ticker)
-                        stock_list.append({
-                            'symbol': ticker,
-                            'name': name,
-                            'market': 'KOSDAQ'
-                        })
-                    except:
-                        continue
+                if market in ["KOSDAQ", "ALL"]:
+                    kosdaq = stock.get_market_ticker_list(today, market="KOSDAQ")
+                    for ticker in kosdaq:
+                        try:
+                            name = stock.get_market_ticker_name(ticker)
+                            stock_list.append({
+                                'symbol': ticker,
+                                'name': name,
+                                'market': 'KOSDAQ'
+                            })
+                        except:
+                            continue
 
-            df = pd.DataFrame(stock_list)
+                df = pd.DataFrame(stock_list)
+            except Exception as e:
+                logger.error(f"pykrx error: {e}, falling back to FinanceDataReader")
+                if fdr is not None:
+                    self.use_pykrx = False
+                    return self.get_stock_list(market)
+                return pd.DataFrame()
         else:
             # Use FinanceDataReader
-            if market == "KOSPI":
-                df = fdr.StockListing('KOSPI')
-            elif market == "KOSDAQ":
-                df = fdr.StockListing('KOSDAQ')
-            else:  # ALL
-                kospi = fdr.StockListing('KOSPI')
-                kosdaq = fdr.StockListing('KOSDAQ')
-                df = pd.concat([kospi, kosdaq], ignore_index=True)
+            try:
+                if market == "KOSPI":
+                    df = fdr.StockListing('KOSPI')
+                elif market == "KOSDAQ":
+                    df = fdr.StockListing('KOSDAQ')
+                else:  # ALL
+                    kospi = fdr.StockListing('KOSPI')
+                    kosdaq = fdr.StockListing('KOSDAQ')
+                    df = pd.concat([kospi, kosdaq], ignore_index=True)
 
-            # Rename columns to match our schema
-            if 'Code' in df.columns:
-                df = df.rename(columns={'Code': 'symbol', 'Name': 'name', 'Market': 'market'})
+                # Rename columns to match our schema
+                if 'Code' in df.columns:
+                    df = df.rename(columns={'Code': 'symbol', 'Name': 'name', 'Market': 'market'})
+            except Exception as e:
+                logger.error(f"FinanceDataReader error: {e}")
+                return pd.DataFrame()
 
         logger.info(f"Found {len(df)} stocks")
         return df
@@ -115,6 +144,13 @@ class KoreanStockCollector:
             DataFrame with OHLCV data
         """
         start_date, end_date = get_date_range(start_date, end_date)
+
+        # Check library availability
+        if self.use_pykrx and stock is None:
+            self.use_pykrx = False
+        if not self.use_pykrx and fdr is None:
+            logger.error("No data source available")
+            return pd.DataFrame()
 
         try:
             if self.use_pykrx:
