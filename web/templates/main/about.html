@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}소개 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="display-5 fw-bold mb-4">소개</h1>
+
+            <p class="lead">
+                퀀트 투자 시스템은 데이터 기반의 체계적인 투자를 위한
+                오픈소스 플랫폼입니다.
+            </p>
+
+            <hr class="my-5">
+
+            <h3 class="mb-4">퀀트 투자란?</h3>
+            <p>
+                퀀트(Quantitative) 투자는 수학적, 통계적 모델을 활용하여
+                투자 결정을 내리는 방법입니다. 감정이 아닌 데이터에 기반하여
+                체계적으로 종목을 선정하고 포트폴리오를 관리합니다.
+            </p>
+
+            <h3 class="mt-5 mb-4">왜 퀀트 투자인가?</h3>
+            <ul>
+                <li><strong>객관성</strong>: 감정에 흔들리지 않는 일관된 투자</li>
+                <li><strong>체계성</strong>: 검증된 규칙에 따른 투자 결정</li>
+                <li><strong>재현성</strong>: 동일한 조건에서 동일한 결과</li>
+                <li><strong>확장성</strong>: 다수의 종목을 효율적으로 분석</li>
+            </ul>
+
+            <h3 class="mt-5 mb-4">시스템 구성</h3>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-download text-primary"></i> 데이터 수집
+                            </h5>
+                            <p class="card-text small">
+                                한국/미국 주식 시장의 가격 및 재무 데이터를
+                                자동으로 수집하고 저장합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-calculator text-success"></i> 팩터 분석
+                            </h5>
+                            <p class="card-text small">
+                                모멘텀, 가치, 퀄리티 등 다양한 팩터를
+                                계산하고 분석합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-lightning text-warning"></i> 전략 실행
+                            </h5>
+                            <p class="card-text small">
+                                팩터 기반 전략을 실행하여
+                                투자 종목을 선정합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-graph-up text-danger"></i> 성과 분석
+                            </h5>
+                            <p class="card-text small">
+                                백테스트와 실시간 포트폴리오의
+                                성과를 분석합니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="mt-5 mb-4">기술 스택</h3>
+            <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-primary">Python</span>
+                <span class="badge bg-secondary">Flask</span>
+                <span class="badge bg-success">Pandas</span>
+                <span class="badge bg-info">NumPy</span>
+                <span class="badge bg-warning">SQLAlchemy</span>
+                <span class="badge bg-danger">Chart.js</span>
+                <span class="badge bg-dark">Bootstrap 5</span>
+            </div>
+
+            <hr class="my-5">
+
+            <div class="text-center">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-rocket-takeoff"></i> 시작하기
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

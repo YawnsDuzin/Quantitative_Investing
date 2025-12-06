@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-gear"></i> 설정</h2>
+
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">현재 설정</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>데이터 수집</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-muted">한국 시장</td>
+                                    <td>{{ config.get('data_collection', {}).get('kr_stock', {}).get('market', []) | join(', ') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">미국 시장</td>
+                                    <td>{{ config.get('data_collection', {}).get('us_stock', {}).get('market', []) | join(', ') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">시작일</td>
+                                    <td>{{ config.get('data_collection', {}).get('start_date', '-') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>전략</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-muted">리밸런싱</td>
+                                    <td>{{ config.get('strategy', {}).get('rebalancing_frequency', '-') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">최대 종목 수</td>
+                                    <td>{{ config.get('strategy', {}).get('max_positions', '-') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">손절</td>
+                                    <td>{{ (config.get('strategy', {}).get('stop_loss', 0) * 100)|round(1) }}%</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>백테스팅</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-muted">초기 자본</td>
+                                    <td>{{ "{:,}".format(config.get('backtesting', {}).get('initial_capital', 0)) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">수수료</td>
+                                    <td>{{ (config.get('backtesting', {}).get('commission', 0) * 100)|round(2) }}%</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">벤치마크</td>
+                                    <td>{{ config.get('backtesting', {}).get('benchmark', '-') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>데이터베이스</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-muted">유형</td>
+                                    <td>{{ config.get('database', {}).get('type', '-') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">경로</td>
+                                    <td>{{ config.get('database', {}).get('path', '-') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import/Export -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">설정 가져오기/내보내기</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>내보내기</h6>
+                            <p class="text-muted small">현재 설정을 YAML 파일로 다운로드합니다.</p>
+                            <a href="{{ url_for('settings.export_config') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-download"></i> config.yaml 다운로드
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>가져오기</h6>
+                            <p class="text-muted small">YAML 파일에서 설정을 불러옵니다.</p>
+                            <form method="POST" action="{{ url_for('settings.import_config') }}" enctype="multipart/form-data">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="input-group">
+                                    <input type="file" class="form-control" name="file" accept=".yaml,.yml">
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="bi bi-upload"></i> 업로드
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

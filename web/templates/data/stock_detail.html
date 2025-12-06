@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}{{ info.get('symbol', '종목') }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ info.get('name', info.get('symbol', '')) }}</h2>
+            <span class="text-muted">{{ info.get('symbol', '') }}</span>
+            <span class="badge bg-secondary ms-2">{{ info.get('market', '') }}</span>
+        </div>
+        <div>
+            <a href="{{ url_for('data.export_stock', symbol=info.get('symbol', '')) }}" class="btn btn-outline-primary">
+                <i class="bi bi-download"></i> CSV 다운로드
+            </a>
+            <a href="{{ url_for('data.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 목록
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Price Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">가격 차트</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="priceChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Info -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">종목 정보</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">종목코드</td>
+                            <td>{{ info.get('symbol', '-') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">종목명</td>
+                            <td>{{ info.get('name', '-') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">시장</td>
+                            <td>{{ info.get('market', '-') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">섹터</td>
+                            <td>{{ info.get('sector', '-') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">산업</td>
+                            <td>{{ info.get('industry', '-') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            {% if not prices.empty %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">최근 가격</h5>
+                </div>
+                <div class="card-body">
+                    {% set latest = prices.iloc[-1] if not prices.empty else {} %}
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">종가</td>
+                            <td>{{ "{:,.0f}".format(latest.get('close', 0)) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">시가</td>
+                            <td>{{ "{:,.0f}".format(latest.get('open', 0)) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">고가</td>
+                            <td>{{ "{:,.0f}".format(latest.get('high', 0)) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">저가</td>
+                            <td>{{ "{:,.0f}".format(latest.get('low', 0)) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">거래량</td>
+                            <td>{{ "{:,.0f}".format(latest.get('volume', 0)) }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Fundamentals -->
+        {% if not fundamentals.empty %}
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">재무 데이터</h5>
+                </div>
+                <div class="card-body">
+                    {% set latest_fund = fundamentals.iloc[-1] if not fundamentals.empty else {} %}
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <div class="border rounded p-3 text-center">
+                                <h6 class="text-muted">PER</h6>
+                                <h4>{{ "%.2f"|format(latest_fund.get('per', 0)) if latest_fund.get('per') else '-' }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="border rounded p-3 text-center">
+                                <h6 class="text-muted">PBR</h6>
+                                <h4>{{ "%.2f"|format(latest_fund.get('pbr', 0)) if latest_fund.get('pbr') else '-' }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="border rounded p-3 text-center">
+                                <h6 class="text-muted">ROE</h6>
+                                <h4>{{ "%.1f"|format(latest_fund.get('roe', 0) * 100) if latest_fund.get('roe') else '-' }}%</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="border rounded p-3 text-center">
+                                <h6 class="text-muted">시가총액</h6>
+                                <h4>{{ "{:,.0f}".format(latest_fund.get('market_cap', 0) / 100000000) if latest_fund.get('market_cap') else '-' }}억</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Price History Table -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">가격 히스토리</h5>
+                </div>
+                <div class="card-body">
+                    {% if not prices.empty %}
+                    <div class="table-responsive" style="max-height: 400px;">
+                        <table class="table table-sm table-hover">
+                            <thead class="sticky-top bg-body">
+                                <tr>
+                                    <th>날짜</th>
+                                    <th>시가</th>
+                                    <th>고가</th>
+                                    <th>저가</th>
+                                    <th>종가</th>
+                                    <th>거래량</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for _, row in prices.tail(100).iterrows() | reverse %}
+                                <tr>
+                                    <td>{{ row['date'].strftime('%Y-%m-%d') if row['date'] else '-' }}</td>
+                                    <td>{{ "{:,.0f}".format(row['open']) }}</td>
+                                    <td>{{ "{:,.0f}".format(row['high']) }}</td>
+                                    <td>{{ "{:,.0f}".format(row['low']) }}</td>
+                                    <td>{{ "{:,.0f}".format(row['close']) }}</td>
+                                    <td>{{ "{:,.0f}".format(row['volume']) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">가격 데이터가 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+fetch('{{ url_for("data.stock_chart_data", symbol=info.get("symbol", "")) }}')
+.then(response => response.json())
+.then(data => {
+    if (data.error) return;
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates,
+            datasets: [{
+                label: '종가',
+                data: data.close,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                fill: true,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: { maxTicksLimit: 10 }
+                },
+                y: {
+                    display: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
