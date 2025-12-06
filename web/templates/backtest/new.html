@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}새 백테스트 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 새 백테스트</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('backtest.new') }}">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Basic Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                {{ form.name.label(class="form-label") }}
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="예: 멀티팩터 2020-2024") }}
+                                {% for error in form.name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.market.label(class="form-label") }}
+                                {{ form.market(class="form-select") }}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.strategy.label(class="form-label") }}
+                                {{ form.strategy(class="form-select", id="strategy_select") }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.rebalance_frequency.label(class="form-label") }}
+                                {{ form.rebalance_frequency(class="form-select") }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Period & Capital -->
+                        <h6 class="mb-3">기간 및 자본</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                {{ form.start_date.label(class="form-label") }}
+                                {{ form.start_date(class="form-control", type="date") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.end_date.label(class="form-label") }}
+                                {{ form.end_date(class="form-control", type="date") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.initial_capital.label(class="form-label") }}
+                                {{ form.initial_capital(class="form-control", type="number") }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Trading Settings -->
+                        <h6 class="mb-3">거래 설정</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                {{ form.max_positions.label(class="form-label") }}
+                                {{ form.max_positions(class="form-control", type="number") }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.commission.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.commission(class="form-control", type="number", step="0.01") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.slippage.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.slippage(class="form-control", type="number", step="0.01") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.stop_loss.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.stop_loss(class="form-control", type="number", step="0.1") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Factor Weights (shown for multifactor) -->
+                        <div id="factor-weights" style="display: none;">
+                            <hr>
+                            <h6 class="mb-3">팩터 비중 (멀티팩터 전략)</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    {{ form.momentum_weight.label(class="form-label") }}
+                                    {{ form.momentum_weight(class="form-control", type="number", step="0.05") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.value_weight.label(class="form-label") }}
+                                    {{ form.value_weight(class="form-control", type="number", step="0.05") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.quality_weight.label(class="form-label") }}
+                                    {{ form.quality_weight(class="form-control", type="number", step="0.05") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.size_weight.label(class="form-label") }}
+                                    {{ form.size_weight(class="form-control", type="number", step="0.05") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows=2, placeholder="백테스트에 대한 메모 (선택)") }}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                            <a href="{{ url_for('backtest.index') }}" class="btn btn-secondary btn-lg">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('strategy_select').addEventListener('change', function() {
+    const factorWeights = document.getElementById('factor-weights');
+    if (this.value === 'multifactor') {
+        factorWeights.style.display = 'block';
+    } else {
+        factorWeights.style.display = 'none';
+    }
+});
+
+// Set from URL parameter if present
+const urlParams = new URLSearchParams(window.location.search);
+const strategy = urlParams.get('strategy');
+if (strategy) {
+    document.getElementById('strategy_select').value = strategy;
+    document.getElementById('strategy_select').dispatchEvent(new Event('change'));
+}
+</script>
+{% endblock %}

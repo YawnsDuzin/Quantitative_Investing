@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}데이터 관리 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-database"></i> 데이터 관리</h2>
+
+    {% if db_info.get('error') %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> 데이터베이스 연결 오류: {{ db_info.error }}
+    </div>
+    {% endif %}
+
+    <!-- Database Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">한국 주식</h6>
+                            <h3 class="mb-0">{{ db_info.get('kr_stocks', 0) }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="bi bi-flag"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">미국 주식</h6>
+                            <h3 class="mb-0">{{ db_info.get('us_stocks', 0) }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="bi bi-globe-americas"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">총 레코드</h6>
+                            <h3 class="mb-0">{{ "{:,}".format(db_info.get('total_records', 0)) }}</h3>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="bi bi-list-ol"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">데이터 기간</h6>
+                            <h6 class="mb-0">
+                                {% if db_info.get('data_start') %}
+                                {{ db_info.data_start.strftime('%Y-%m-%d') if db_info.data_start else '-' }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </h6>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="bi bi-calendar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Korean Stocks -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-flag"></i> 한국 주식</h5>
+                    <a href="{{ url_for('data.kr_stocks') }}" class="btn btn-sm btn-outline-primary">상세 보기</a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">KOSPI, KOSDAQ 시장의 주식 데이터를 수집합니다.</p>
+
+                    <form id="kr-collect-form">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">시장</label>
+                                <select class="form-select" name="market">
+                                    <option value="KOSPI">KOSPI</option>
+                                    <option value="KOSDAQ">KOSDAQ</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">시작일</label>
+                                <input type="date" class="form-control" name="start_date" value="2020-01-01">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="kr-collect-btn">
+                            <i class="bi bi-download"></i> 데이터 수집
+                        </button>
+                    </form>
+
+                    <div id="kr-progress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                        </div>
+                        <small class="text-muted">데이터 수집 중...</small>
+                    </div>
+
+                    <div id="kr-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- US Stocks -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-globe-americas"></i> 미국 주식</h5>
+                    <a href="{{ url_for('data.us_stocks') }}" class="btn btn-sm btn-outline-primary">상세 보기</a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">NYSE, NASDAQ 시장의 주식 데이터를 수집합니다.</p>
+
+                    <form id="us-collect-form">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">지수</label>
+                                <select class="form-select" name="index">
+                                    <option value="SP500">S&P 500</option>
+                                    <option value="NASDAQ100">NASDAQ 100</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">시작일</label>
+                                <input type="date" class="form-control" name="start_date" value="2020-01-01">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success" id="us-collect-btn">
+                            <i class="bi bi-download"></i> 데이터 수집
+                        </button>
+                    </form>
+
+                    <div id="us-progress" class="mt-3" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                        </div>
+                        <small class="text-muted">데이터 수집 중...</small>
+                    </div>
+
+                    <div id="us-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Search -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-search"></i> 종목 검색</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="stock-search" placeholder="종목명 또는 코드 검색...">
+                        <select class="form-select" id="market-filter" style="max-width: 150px;">
+                            <option value="all">전체</option>
+                            <option value="KR">한국</option>
+                            <option value="US">미국</option>
+                        </select>
+                        <button class="btn btn-outline-primary" type="button" id="search-btn">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="search-results"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Korean stock collection
+document.getElementById('kr-collect-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    document.getElementById('kr-progress').style.display = 'block';
+    document.getElementById('kr-collect-btn').disabled = true;
+
+    fetch('{{ url_for("data.collect_kr") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.getElementById('kr-progress').style.display = 'none';
+        document.getElementById('kr-collect-btn').disabled = false;
+
+        if (result.status === 'success') {
+            document.getElementById('kr-result').innerHTML =
+                `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${result.message}</div>`;
+        } else {
+            document.getElementById('kr-result').innerHTML =
+                `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${result.error}</div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('kr-progress').style.display = 'none';
+        document.getElementById('kr-collect-btn').disabled = false;
+        document.getElementById('kr-result').innerHTML =
+            `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> 오류가 발생했습니다.</div>`;
+    });
+});
+
+// US stock collection
+document.getElementById('us-collect-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    document.getElementById('us-progress').style.display = 'block';
+    document.getElementById('us-collect-btn').disabled = true;
+
+    fetch('{{ url_for("data.collect_us") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.getElementById('us-progress').style.display = 'none';
+        document.getElementById('us-collect-btn').disabled = false;
+
+        if (result.status === 'success') {
+            document.getElementById('us-result').innerHTML =
+                `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${result.message}</div>`;
+        } else {
+            document.getElementById('us-result').innerHTML =
+                `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> ${result.error}</div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('us-progress').style.display = 'none';
+        document.getElementById('us-collect-btn').disabled = false;
+        document.getElementById('us-result').innerHTML =
+            `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> 오류가 발생했습니다.</div>`;
+    });
+});
+
+// Stock search
+document.getElementById('search-btn').addEventListener('click', searchStocks);
+document.getElementById('stock-search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') searchStocks();
+});
+
+function searchStocks() {
+    const query = document.getElementById('stock-search').value;
+    const market = document.getElementById('market-filter').value;
+
+    if (query.length < 1) return;
+
+    fetch(`{{ url_for("api.stock_search") }}?q=${encodeURIComponent(query)}&market=${market}`)
+    .then(response => response.json())
+    .then(results => {
+        if (results.length === 0) {
+            document.getElementById('search-results').innerHTML =
+                '<p class="text-muted">검색 결과가 없습니다.</p>';
+            return;
+        }
+
+        let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>코드</th><th>이름</th><th>시장</th><th></th></tr></thead><tbody>';
+        results.forEach(stock => {
+            html += `<tr>
+                <td>${stock.symbol}</td>
+                <td>${stock.name || '-'}</td>
+                <td><span class="badge bg-secondary">${stock.market || '-'}</span></td>
+                <td><a href="{{ url_for('data.stock_detail', symbol='') }}${stock.symbol}" class="btn btn-sm btn-outline-primary">상세</a></td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('search-results').innerHTML = html;
+    });
+}
+</script>
+{% endblock %}

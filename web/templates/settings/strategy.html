@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}전략 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 전략 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.strategy') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <h6 class="mb-3">리밸런싱</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">리밸런싱 주기</label>
+                                <select class="form-select" name="rebalancing_frequency">
+                                    <option value="daily" {{ 'selected' if config.get('rebalancing_frequency') == 'daily' }}>매일</option>
+                                    <option value="weekly" {{ 'selected' if config.get('rebalancing_frequency') == 'weekly' }}>매주</option>
+                                    <option value="monthly" {{ 'selected' if config.get('rebalancing_frequency') == 'monthly' }}>매월</option>
+                                    <option value="quarterly" {{ 'selected' if config.get('rebalancing_frequency') == 'quarterly' }}>분기별</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">리밸런싱 일자 (월 기준)</label>
+                                <input type="number" class="form-control" name="rebalancing_day" min="1" max="28"
+                                       value="{{ config.get('rebalancing_day', 1) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">포지션</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">최대 보유 종목 수</label>
+                                <input type="number" class="form-control" name="max_positions" min="5" max="100"
+                                       value="{{ config.get('max_positions', 20) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">최소 보유 종목 수</label>
+                                <input type="number" class="form-control" name="min_positions" min="1" max="50"
+                                       value="{{ config.get('min_positions', 10) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">최대 개별 비중</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="max_position_size" step="0.01" min="0.01" max="0.5"
+                                           value="{{ config.get('max_position_size', 0.1) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">리스크 관리</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">손절 기준</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="stop_loss" step="0.01" min="0" max="0.5"
+                                           value="{{ config.get('stop_loss', 0.15) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">익절 기준 (선택)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="take_profit" step="0.01" min="0" max="1"
+                                           value="{{ config.get('take_profit', '') or '' }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="equal_weight" id="equal_weight"
+                                           {{ 'checked' if config.get('equal_weight', True) }}>
+                                    <label class="form-check-label" for="equal_weight">동일 비중 사용</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">팩터 비중 (멀티팩터 전략)</h6>
+                        {% set weights = config.get('factor_weights', {}) %}
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <label class="form-label">모멘텀</label>
+                                <input type="number" class="form-control" name="momentum_weight" step="0.05" min="0" max="1"
+                                       value="{{ weights.get('momentum', 0.4) }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">가치</label>
+                                <input type="number" class="form-control" name="value_weight" step="0.05" min="0" max="1"
+                                       value="{{ weights.get('value', 0.3) }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">퀄리티</label>
+                                <input type="number" class="form-control" name="quality_weight" step="0.05" min="0" max="1"
+                                       value="{{ weights.get('quality', 0.2) }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">사이즈</label>
+                                <input type="number" class="form-control" name="size_weight" step="0.05" min="0" max="1"
+                                       value="{{ weights.get('size', 0.1) }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

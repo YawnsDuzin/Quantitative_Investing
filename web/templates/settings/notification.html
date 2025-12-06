@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}알림 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bell"></i> 알림 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.notification') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" name="notification_enabled" id="notification_enabled"
+                                       {{ 'checked' if config.get('enabled') }}>
+                                <label class="form-check-label" for="notification_enabled">알림 활성화</label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-3"><i class="bi bi-telegram"></i> Telegram</h6>
+                        <div class="row mb-4">
+                            <div class="col-12 mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" name="telegram_enabled" id="telegram_enabled"
+                                           {{ 'checked' if config.get('telegram', {}).get('enabled') }}>
+                                    <label class="form-check-label" for="telegram_enabled">Telegram 알림 사용</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Bot Token</label>
+                                <input type="password" class="form-control" name="telegram_bot_token"
+                                       value="{{ config.get('telegram', {}).get('bot_token', '') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Chat ID</label>
+                                <input type="text" class="form-control" name="telegram_chat_id"
+                                       value="{{ config.get('telegram', {}).get('chat_id', '') }}">
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-3"><i class="bi bi-envelope"></i> Email</h6>
+                        <div class="row mb-4">
+                            <div class="col-12 mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" name="email_enabled" id="email_enabled"
+                                           {{ 'checked' if config.get('email', {}).get('enabled') }}>
+                                    <label class="form-check-label" for="email_enabled">이메일 알림 사용</label>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">SMTP 서버</label>
+                                <input type="text" class="form-control" name="smtp_server"
+                                       value="{{ config.get('email', {}).get('smtp_server', 'smtp.gmail.com') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">포트</label>
+                                <input type="number" class="form-control" name="smtp_port"
+                                       value="{{ config.get('email', {}).get('smtp_port', 587) }}">
+                            </div>
+                            <div class="col-md-6 mt-3">
+                                <label class="form-label">보내는 이메일</label>
+                                <input type="email" class="form-control" name="email_sender"
+                                       value="{{ config.get('email', {}).get('sender', '') }}">
+                            </div>
+                            <div class="col-md-6 mt-3">
+                                <label class="form-label">받는 이메일</label>
+                                <input type="email" class="form-control" name="email_receiver"
+                                       value="{{ config.get('email', {}).get('receiver', '') }}">
+                            </div>
+                            <div class="col-md-6 mt-3">
+                                <label class="form-label">이메일 비밀번호</label>
+                                <input type="password" class="form-control" name="email_password"
+                                       value="{{ config.get('email', {}).get('password', '') }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

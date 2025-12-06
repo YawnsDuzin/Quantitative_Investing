@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}백테스트 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-clock-history"></i> 백테스트</h2>
+        <a href="{{ url_for('backtest.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> 새 백테스트
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if backtests.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>이름</th>
+                            <th>전략</th>
+                            <th>시장</th>
+                            <th>기간</th>
+                            <th>초기자본</th>
+                            <th>수익률</th>
+                            <th>샤프비율</th>
+                            <th>MDD</th>
+                            <th>상태</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bt in backtests.items %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('backtest.view', id=bt.id) }}">{{ bt.name }}</a>
+                            </td>
+                            <td><span class="badge bg-secondary">{{ bt.strategy_name }}</span></td>
+                            <td>{{ bt.market }}</td>
+                            <td class="small">
+                                {{ bt.start_date.strftime('%Y-%m-%d') }}<br>
+                                ~ {{ bt.end_date.strftime('%Y-%m-%d') }}
+                            </td>
+                            <td>{{ "{:,.0f}".format(bt.initial_capital) }}</td>
+                            <td class="{{ 'text-success' if bt.annual_return and bt.annual_return > 0 else 'text-danger' }}">
+                                {% if bt.annual_return %}{{ "%.1f"|format(bt.annual_return * 100) }}%{% else %}-{% endif %}
+                            </td>
+                            <td>{% if bt.sharpe_ratio %}{{ "%.2f"|format(bt.sharpe_ratio) }}{% else %}-{% endif %}</td>
+                            <td class="text-danger">
+                                {% if bt.max_drawdown %}{{ "%.1f"|format(bt.max_drawdown * 100) }}%{% else %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if bt.status == 'completed' %}
+                                    <span class="badge bg-success">완료</span>
+                                {% elif bt.status == 'running' %}
+                                    <span class="badge bg-warning">실행중</span>
+                                {% elif bt.status == 'failed' %}
+                                    <span class="badge bg-danger">실패</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">대기</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('backtest.view', id=bt.id) }}" class="btn btn-outline-primary" title="상세">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('backtest.delete', id=bt.id) }}" class="d-inline"
+                                          onsubmit="return confirm('삭제하시겠습니까?');">
+                                        <button type="submit" class="btn btn-outline-danger" title="삭제">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if backtests.pages > 1 %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if backtests.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('backtest.index', page=backtests.prev_num) }}">이전</a>
+                    </li>
+                    {% endif %}
+
+                    {% for page in backtests.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page %}
+                            <li class="page-item {{ 'active' if page == backtests.page else '' }}">
+                                <a class="page-link" href="{{ url_for('backtest.index', page=page) }}">{{ page }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if backtests.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('backtest.index', page=backtests.next_num) }}">다음</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-4 text-muted"></i>
+                <p class="text-muted mt-3">백테스트 기록이 없습니다.</p>
+                <a href="{{ url_for('backtest.new') }}" class="btn btn-primary">
+                    <i class="bi bi-plus"></i> 첫 백테스트 만들기
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

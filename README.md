@@ -6,11 +6,13 @@
 
 이 프로젝트는 퀀트 투자 전략을 개발하고 백테스팅할 수 있는 통합 시스템을 제공합니다. Python 기반으로 구축되었으며, 다음과 같은 기능을 포함합니다:
 
+- **웹 인터페이스**: Flask 기반 웹 대시보드 (라이트/다크 테마 지원)
 - 한국 주식 (KOSPI/KOSDAQ) 및 미국 주식 (NYSE/NASDAQ) 데이터 수집
 - 기술적 지표 계산 (SMA, RSI, MACD, Bollinger Bands 등)
 - 퀀트 팩터 계산 (모멘텀, 밸류, 퀄리티, 사이즈)
 - 다양한 투자 전략 구현 (모멘텀, 밸류, 퀄리티, 멀티팩터)
 - 백테스팅 엔진 및 성과 분석
+- 포트폴리오 최적화 (평균-분산, 샤프비율 최대화)
 - 시각화 및 리포트 생성
 
 ## 🚀 시작하기
@@ -45,6 +47,37 @@ cp config/.env.example config/.env
 # .env 파일을 열어 API 키 등을 설정
 ```
 
+## 🌐 웹 인터페이스 실행
+
+### 개발 모드
+
+```bash
+python run.py
+```
+
+브라우저에서 http://localhost:5000 접속
+
+### 프로덕션 모드
+
+```bash
+# Linux/macOS
+gunicorn -w 4 -b 0.0.0.0:5000 "web:create_app('production')"
+
+# Windows
+python run_production.py
+```
+
+### 주요 기능
+
+- **대시보드**: 포트폴리오 현황 및 성과 요약
+- **전략 관리**: 투자 전략 생성, 수정, 복제
+- **백테스트**: 전략 검증 및 상세 성과 분석
+- **데이터 관리**: 한국/미국 주식 데이터 수집
+- **설정**: 시스템 전반의 설정 관리
+- **라이트/다크 테마**: 사용자 선호에 따른 테마 변경
+
+자세한 내용은 [웹 인터페이스 가이드](docs/10-web-interface.md)를 참조하세요.
+
 ## 📂 프로젝트 구조
 
 ```
@@ -56,6 +89,12 @@ Quantitative_Investing/
 │   ├── raw/                  # 원본 데이터
 │   ├── processed/            # 전처리된 데이터
 │   └── database/             # SQLite DB
+├── web/                       # 웹 인터페이스 (Flask)
+│   ├── templates/            # HTML 템플릿
+│   ├── static/               # CSS, JS 파일
+│   ├── routes/               # 라우트 정의
+│   ├── models/               # 데이터베이스 모델
+│   └── forms/                # WTForms 폼
 ├── src/                       # 소스 코드
 │   ├── data_collection/      # 데이터 수집
 │   │   ├── kr_stock_collector.py

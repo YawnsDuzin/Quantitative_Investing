@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}백테스트 실행 중 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-4" role="status" style="width: 4rem; height: 4rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h3>{{ backtest.name }}</h3>
+                    <p class="text-muted mb-4">백테스트를 실행하고 있습니다...</p>
+
+                    <div class="progress mb-4" style="height: 20px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+
+                    <div id="status-message" class="alert alert-info">
+                        <i class="bi bi-clock"></i> 데이터를 분석하고 있습니다. 잠시만 기다려주세요.
+                    </div>
+
+                    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Execute backtest
+fetch('{{ url_for("backtest.execute", id=backtest.id) }}', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+    }
+})
+.then(response => response.json())
+.then(data => {
+    if (data.status === 'completed') {
+        window.location.href = data.redirect;
+    } else if (data.status === 'failed') {
+        document.getElementById('status-message').style.display = 'none';
+        document.getElementById('error-message').style.display = 'block';
+        document.getElementById('error-message').innerHTML = '<i class="bi bi-exclamation-triangle"></i> 오류: ' + data.error;
+        document.querySelector('.spinner-border').style.display = 'none';
+        document.querySelector('.progress').style.display = 'none';
+    }
+})
+.catch(error => {
+    document.getElementById('status-message').style.display = 'none';
+    document.getElementById('error-message').style.display = 'block';
+    document.getElementById('error-message').innerHTML = '<i class="bi bi-exclamation-triangle"></i> 네트워크 오류가 발생했습니다.';
+    document.querySelector('.spinner-border').style.display = 'none';
+    document.querySelector('.progress').style.display = 'none';
+});
+</script>
+{% endblock %}

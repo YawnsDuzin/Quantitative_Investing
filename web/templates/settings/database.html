@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}데이터베이스 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-database"></i> 데이터베이스 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.database') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-4">
+                            <label class="form-label">데이터베이스 유형</label>
+                            <select class="form-select" name="db_type" id="db_type">
+                                <option value="sqlite" {{ 'selected' if config.get('type') == 'sqlite' }}>SQLite</option>
+                                <option value="postgresql" {{ 'selected' if config.get('type') == 'postgresql' }}>PostgreSQL</option>
+                                <option value="mysql" {{ 'selected' if config.get('type') == 'mysql' }}>MySQL</option>
+                            </select>
+                        </div>
+
+                        <!-- SQLite Settings -->
+                        <div id="sqlite-settings" class="mb-4">
+                            <label class="form-label">데이터베이스 파일 경로</label>
+                            <input type="text" class="form-control" name="db_path"
+                                   value="{{ config.get('path', 'data/database/quant_investing.db') }}">
+                        </div>
+
+                        <!-- PostgreSQL/MySQL Settings -->
+                        <div id="sql-settings" style="display: none;">
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">호스트</label>
+                                    <input type="text" class="form-control" name="db_host"
+                                           value="{{ config.get('host', 'localhost') }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">포트</label>
+                                    <input type="number" class="form-control" name="db_port"
+                                           value="{{ config.get('port', 5432) }}">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">데이터베이스 이름</label>
+                                    <input type="text" class="form-control" name="db_name"
+                                           value="{{ config.get('name', 'quant_investing') }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">사용자 이름</label>
+                                    <input type="text" class="form-control" name="db_user"
+                                           value="{{ config.get('user', '') }}">
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">비밀번호</label>
+                                <input type="password" class="form-control" name="db_password"
+                                       value="{{ config.get('password', '') }}">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            데이터베이스 설정을 변경하면 애플리케이션 재시작이 필요합니다.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('db_type').addEventListener('change', function() {
+    if (this.value === 'sqlite') {
+        document.getElementById('sqlite-settings').style.display = 'block';
+        document.getElementById('sql-settings').style.display = 'none';
+    } else {
+        document.getElementById('sqlite-settings').style.display = 'none';
+        document.getElementById('sql-settings').style.display = 'block';
+    }
+});
+
+// Initialize on load
+document.getElementById('db_type').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}
