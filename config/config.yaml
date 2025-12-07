@@ -1,108 +1,75 @@
-# Quantitative Investing Configuration
-
-# Data Collection Settings
-data_collection:
-  # Korean Stock Settings
-  kr_stock:
-    market: ["KOSPI", "KOSDAQ"]
-    min_market_cap: 50000000000  # 500억 원 (50 billion KRW)
-    exclude_sectors: []
-
-  # US Stock Settings
-  us_stock:
-    market: ["NYSE", "NASDAQ"]
-    min_market_cap: 1000000000  # 1 billion USD
-    exclude_sectors: []
-
-  # Data Update Schedule
-  update_schedule:
-    daily: "09:00"  # Daily data update time
-    fundamental: "weekly"  # Fundamental data update frequency
-
-  # Date Range
-  start_date: "2018-01-01"
-  end_date: null  # null means today
-
-# Strategy Parameters
-strategy:
-  # Rebalancing
-  rebalancing_frequency: "monthly"  # daily, weekly, monthly, quarterly
-  rebalancing_day: 1  # Day of month for monthly rebalancing
-
-  # Portfolio Settings
-  max_positions: 20
-  min_positions: 10
-  equal_weight: true
-
-  # Risk Management
-  stop_loss: 0.15  # 15% stop loss
-  take_profit: null  # No take profit
-  max_position_size: 0.1  # Max 10% per position
-
-  # Factor Weights (총합 1.0)
-  factor_weights:
-    momentum: 0.4
-    value: 0.3
-    quality: 0.2
-    size: 0.1
-
-# Backtesting Settings
 backtesting:
-  initial_capital: 100000000  # 1억 원 or 100K USD
-  commission: 0.0015  # 0.15% per trade
-  slippage: 0.001  # 0.1% slippage
-
-  # Performance Metrics
-  benchmark: "SPY"  # S&P 500 for US, KOSPI for KR
-  risk_free_rate: 0.03  # 3% annual risk-free rate
-
-# Database Settings
+  benchmark: SPY
+  commission: 0.0015
+  initial_capital: 100000000
+  risk_free_rate: 0.03
+  slippage: 0.001
+data_collection:
+  end_date: null
+  kr_stock:
+    exclude_sectors: []
+    market:
+    - KOSPI
+    - KOSDAQ
+    min_market_cap: 50000000000
+  start_date: '2018-01-01'
+  update_schedule:
+    daily: 09:00
+    fundamental: weekly
+  us_stock:
+    exclude_sectors: []
+    market:
+    - NYSE
+    - NASDAQ
+    min_market_cap: 1000000000
 database:
-  type: "sqlite"  # sqlite, postgresql, mysql
-  path: "data/database/quant_investing.db"
-  # For PostgreSQL/MySQL
-  # host: "localhost"
-  # port: 5432
-  # name: "quant_investing"
-  # user: "user"
-  # password: "password"
-
-# Logging Settings
-logging:
-  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "logs/quant_investing.log"
-  max_bytes: 10485760  # 10MB
-  backup_count: 5
-
-# Technical Indicators Settings
+  path: data/database/quant_investing.db
+  type: sqlite
 indicators:
-  # Moving Averages
-  sma_periods: [20, 50, 200]
-  ema_periods: [12, 26]
-
-  # Momentum Indicators
-  rsi_period: 14
-  macd_fast: 12
-  macd_slow: 26
-  macd_signal: 9
-
-  # Volatility Indicators
+  atr_period: 14
   bollinger_period: 20
   bollinger_std: 2
-  atr_period: 14
-
-# Notification Settings
+  ema_periods:
+  - 12
+  - 26
+  macd_fast: 12
+  macd_signal: 9
+  macd_slow: 26
+  rsi_period: 14
+  sma_periods:
+  - 20
+  - 50
+  - 200
+logging:
+  backup_count: 5
+  file: logs/quant_investing.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  max_bytes: 10485760
 notification:
+  email:
+    enabled: true
+    password: cotwlvlxl@#956807
+    receiver: yawnsduzin@gmail.com
+    sender: yawnsduzin@gmail.com
+    smtp_port: 587
+    smtp_server: smtp.gmail.com
   enabled: false
   telegram:
-    enabled: false
-    bot_token: ""
-    chat_id: ""
-  email:
-    enabled: false
-    smtp_server: "smtp.gmail.com"
-    smtp_port: 587
-    sender: ""
-    receiver: ""
-    password: ""
+    bot_token: 8497371534:AAFNoqNKZz6H-8xinluH0IOQkRGRhKSvLis
+    chat_id: '8095251995'
+    enabled: true
+strategy:
+  equal_weight: true
+  factor_weights:
+    momentum: 0.4
+    quality: 0.2
+    size: 0.1
+    value: 0.3
+  max_position_size: 0.1
+  max_positions: 20
+  min_positions: 10
+  rebalancing_day: 1
+  rebalancing_frequency: monthly
+  stop_loss: 0.15
+  take_profit: null

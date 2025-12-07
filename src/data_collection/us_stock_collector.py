@@ -8,12 +8,35 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Union
 from tqdm import tqdm
 import time
+import os
+import ssl
+import certifi
+
+# Set SSL certificate path for yfinance/curl_cffi
+cert_path = certifi.where()
+os.environ['SSL_CERT_FILE'] = cert_path
+os.environ['REQUESTS_CA_BUNDLE'] = cert_path
+os.environ['CURL_CA_BUNDLE'] = cert_path
+
+# Disable curl_cffi to use requests backend
+os.environ['YF_USE_CURL'] = 'false'
 
 try:
     import yfinance as yf
+    # Configure yfinance
+    yf.set_tz_cache_location(os.path.join(os.path.dirname(__file__), '.yf_cache'))
 except ImportError:
     print("Warning: yfinance not installed")
     print("Install with: pip install yfinance")
+
+# Also try FinanceDataReader as backup
+try:
+    import FinanceDataReader as fdr
+    FDR_AVAILABLE = True
+    print(f"[US Stock Collector] FinanceDataReader loaded successfully (version: {getattr(fdr, '__version__', 'unknown')})")
+except ImportError as e:
+    FDR_AVAILABLE = False
+    print(f"[US Stock Collector] FinanceDataReader not available: {e}")
 
 from ..utils.logger import get_logger
 from ..utils.database import get_db
@@ -32,39 +55,52 @@ class USStockCollector:
         self.db = get_db()
         logger.info("US Stock Collector initialized")
 
-    def get_stock_info(self, symbol: str) -> Dict:
+    def get_stock_info(self, symbol: str, max_retries: int = 2) -> Dict:
         """
         Get stock information
 
         Args:
             symbol: Stock ticker symbol (e.g., 'AAPL', 'MSFT')
+            max_retries: Maximum retry attempts for rate limiting
 
         Returns:
             Dictionary with stock info
         """
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
+        for attempt in range(max_retries):
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
 
-            return {
-                'symbol': symbol,
-                'name': info.get('longName', symbol),
-                'market': info.get('exchange', 'Unknown'),
-                'sector': info.get('sector', None),
-                'industry': info.get('industry', None),
-                'market_cap': info.get('marketCap', None),
-                'currency': info.get('currency', 'USD')
-            }
+                return {
+                    'symbol': symbol,
+                    'name': info.get('longName', symbol),
+                    'market': info.get('exchange', 'Unknown'),
+                    'sector': info.get('sector', None),
+                    'industry': info.get('industry', None),
+                    'market_cap': info.get('marketCap', None),
+                    'currency': info.get('currency', 'USD')
+                }
 
-        except Exception as e:
-            logger.error(f"Error fetching info for {symbol}: {str(e)}")
-            return {'symbol': symbol, 'name': symbol}
+            except Exception as e:
+                error_msg = str(e)
+                # Check for rate limiting (429 error)
+                if '429' in error_msg or 'Too Many Requests' in error_msg:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 5  # Exponential backoff: 5s, 10s
+                        logger.warning(f"[{symbol}] Rate limited, waiting {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                logger.error(f"Error fetching info for {symbol}: {error_msg}")
+                return {'symbol': symbol, 'name': symbol}
+
+        return {'symbol': symbol, 'name': symbol}
 
     def get_price_data(self,
                       symbol: str,
                       start_date: Union[str, datetime] = None,
                       end_date: Union[str, datetime] = None,
-                      interval: str = '1d') -> pd.DataFrame:
+                      interval: str = '1d',
+                      max_retries: int = 3) -> pd.DataFrame:
         """
         Get OHLCV price data for a single stock
 
@@ -73,65 +109,113 @@ class USStockCollector:
             start_date: Start date
             end_date: End date
             interval: Data interval ('1d', '1wk', '1mo')
+            max_retries: Maximum number of retry attempts
 
         Returns:
             DataFrame with OHLCV data
         """
         start_date, end_date = get_date_range(start_date, end_date)
 
-        try:
-            ticker = yf.Ticker(symbol)
-            df = ticker.history(
-                start=start_date,
-                end=end_date,
-                interval=interval,
-                auto_adjust=False
-            )
+        df = pd.DataFrame()
 
-            if df.empty:
-                logger.warning(f"No data found for {symbol}")
-                return pd.DataFrame()
+        # Try FinanceDataReader first (more reliable for some regions)
+        if FDR_AVAILABLE:
+            for attempt in range(max_retries):
+                try:
+                    logger.debug(f"[{symbol}] Trying FDR (attempt {attempt + 1}/{max_retries})...")
+                    df = fdr.DataReader(symbol, start_date, end_date)
+                    if df is not None and not df.empty:
+                        df = df.reset_index()
+                        df.columns = df.columns.str.lower()
 
-            # Reset index to make date a column
-            df = df.reset_index()
+                        # FDR returns date as index, after reset_index it becomes 'index' column
+                        if 'index' in df.columns:
+                            df = df.rename(columns={'index': 'date'})
 
-            # Rename columns to lowercase
-            column_mapping = {
-                'Date': 'date',
-                'Open': 'open',
-                'High': 'high',
-                'Low': 'low',
-                'Close': 'close',
-                'Volume': 'volume',
-                'Adj Close': 'adj_close'
-            }
-            df = df.rename(columns=column_mapping)
+                        # Rename 'change' to avoid conflicts
+                        if 'change' in df.columns:
+                            df = df.drop(columns=['change'])
 
-            # Select only needed columns
-            columns_to_keep = ['date', 'open', 'high', 'low', 'close', 'volume', 'adj_close']
-            df = df[[col for col in columns_to_keep if col in df.columns]]
+                        # Keep only needed columns
+                        columns_to_keep = ['date', 'open', 'high', 'low', 'close', 'volume', 'adj close']
+                        df = df[[col for col in columns_to_keep if col in df.columns]]
 
-            # Add symbol and market columns
-            df['symbol'] = symbol
+                        # Rename adj close
+                        if 'adj close' in df.columns:
+                            df = df.rename(columns={'adj close': 'adj_close'})
 
-            # Get market info
+                        df['symbol'] = symbol
+                        df['market'] = 'US'
+                        df['date'] = pd.to_datetime(df['date'])
+                        df = df.sort_values('date').reset_index(drop=True)
+
+                        logger.info(f"[{symbol}] SUCCESS via FDR: {len(df)} records")
+                        return df
+                    else:
+                        logger.warning(f"[{symbol}] FDR returned empty data")
+                except Exception as e:
+                    logger.warning(f"[{symbol}] FDR attempt {attempt + 1} failed: {str(e)}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait before retry
+
+        # Fallback to yfinance with retry
+        logger.debug(f"[{symbol}] Trying yfinance (FDR failed or unavailable)...")
+        for attempt in range(max_retries):
             try:
-                info = yf.Ticker(symbol).info
-                df['market'] = info.get('exchange', 'Unknown')
-            except:
-                df['market'] = 'Unknown'
+                ticker = yf.Ticker(symbol)
+                df = ticker.history(
+                    start=start_date,
+                    end=end_date,
+                    interval=interval,
+                    auto_adjust=False
+                )
 
-            # Ensure date is datetime
-            df['date'] = pd.to_datetime(df['date'])
+                if df.empty:
+                    logger.warning(f"[{symbol}] yfinance returned empty (attempt {attempt + 1})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2)  # Wait before retry
+                        continue
+                    return pd.DataFrame()
 
-            # Sort by date
-            df = df.sort_values('date').reset_index(drop=True)
+                # Reset index to make date a column
+                df = df.reset_index()
 
-            return df
+                # Rename columns to lowercase
+                column_mapping = {
+                    'Date': 'date',
+                    'Open': 'open',
+                    'High': 'high',
+                    'Low': 'low',
+                    'Close': 'close',
+                    'Volume': 'volume',
+                    'Adj Close': 'adj_close'
+                }
+                df = df.rename(columns=column_mapping)
 
-        except Exception as e:
-            logger.error(f"Error fetching price data for {symbol}: {str(e)}")
-            return pd.DataFrame()
+                # Select only needed columns
+                columns_to_keep = ['date', 'open', 'high', 'low', 'close', 'volume', 'adj_close']
+                df = df[[col for col in columns_to_keep if col in df.columns]]
+
+                # Add symbol and market columns
+                df['symbol'] = symbol
+                df['market'] = 'US'  # Default to US, don't make another API call
+
+                # Ensure date is datetime
+                df['date'] = pd.to_datetime(df['date'])
+
+                # Sort by date
+                df = df.sort_values('date').reset_index(drop=True)
+
+                logger.info(f"[{symbol}] SUCCESS via yfinance: {len(df)} records")
+                return df
+
+            except Exception as e:
+                logger.error(f"[{symbol}] yfinance attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Wait before retry
+
+        logger.error(f"[{symbol}] All data sources failed after {max_retries} attempts")
+        return pd.DataFrame()
 
     def get_fundamental_data(self, symbol: str) -> Dict:
         """
@@ -177,22 +261,57 @@ class USStockCollector:
         Returns:
             List of ticker symbols
         """
+        tickers = []
+
+        # Method 1: Try Wikipedia
         try:
-            # Download S&P 500 list from Wikipedia
             url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
             tables = pd.read_html(url)
             sp500_table = tables[0]
             tickers = sp500_table['Symbol'].tolist()
-
-            # Clean tickers (replace . with -)
             tickers = [ticker.replace('.', '-') for ticker in tickers]
-
-            logger.info(f"Found {len(tickers)} S&P 500 stocks")
+            logger.info(f"Found {len(tickers)} S&P 500 stocks from Wikipedia")
             return tickers
-
         except Exception as e:
-            logger.error(f"Error fetching S&P 500 list: {str(e)}")
-            return []
+            logger.warning(f"Wikipedia failed: {str(e)}")
+
+        # Method 2: Try datahub.io
+        try:
+            url = 'https://datahub.io/core/s-and-p-500-companies/r/constituents.csv'
+            df = pd.read_csv(url)
+            if 'Symbol' in df.columns:
+                tickers = df['Symbol'].tolist()
+                tickers = [ticker.replace('.', '-') for ticker in tickers]
+                logger.info(f"Found {len(tickers)} S&P 500 stocks from datahub.io")
+                return tickers
+        except Exception as e:
+            logger.warning(f"datahub.io failed: {str(e)}")
+
+        # Method 3: Try slickcharts.com
+        try:
+            import requests
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            url = 'https://www.slickcharts.com/sp500'
+            response = requests.get(url, headers=headers, timeout=10)
+            tables = pd.read_html(response.text)
+            for table in tables:
+                if 'Symbol' in table.columns:
+                    tickers = table['Symbol'].tolist()
+                    tickers = [ticker.replace('.', '-') for ticker in tickers]
+                    logger.info(f"Found {len(tickers)} S&P 500 stocks from slickcharts")
+                    return tickers
+        except Exception as e:
+            logger.warning(f"slickcharts failed: {str(e)}")
+
+        # Fallback: Expanded list of major stocks
+        logger.error("All S&P 500 sources failed, using fallback list")
+        return [
+            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'BRK-B', 'JPM', 'V',
+            'JNJ', 'UNH', 'HD', 'PG', 'MA', 'XOM', 'CVX', 'LLY', 'ABBV', 'MRK',
+            'KO', 'PEP', 'COST', 'AVGO', 'TMO', 'WMT', 'MCD', 'CSCO', 'ACN', 'ABT',
+            'DHR', 'NKE', 'ADBE', 'CRM', 'TXN', 'PM', 'VZ', 'NEE', 'CMCSA', 'INTC',
+            'NFLX', 'AMD', 'QCOM', 'UPS', 'T', 'HON', 'LOW', 'MS', 'BA', 'GS'
+        ]
 
     def get_nasdaq100_tickers(self) -> List[str]:
         """
@@ -201,19 +320,42 @@ class USStockCollector:
         Returns:
             List of ticker symbols
         """
+        # Method 1: Try Wikipedia
         try:
-            # Download NASDAQ 100 list from Wikipedia
             url = 'https://en.wikipedia.org/wiki/Nasdaq-100'
             tables = pd.read_html(url)
-            nasdaq_table = tables[4]  # The table with tickers
-            tickers = nasdaq_table['Ticker'].tolist()
-
-            logger.info(f"Found {len(tickers)} NASDAQ 100 stocks")
-            return tickers
-
+            for table in tables:
+                if 'Ticker' in table.columns:
+                    tickers = table['Ticker'].tolist()
+                    logger.info(f"Found {len(tickers)} NASDAQ 100 stocks from Wikipedia")
+                    return tickers
         except Exception as e:
-            logger.error(f"Error fetching NASDAQ 100 list: {str(e)}")
-            return []
+            logger.warning(f"Wikipedia NASDAQ 100 failed: {str(e)}")
+
+        # Method 2: Try slickcharts.com
+        try:
+            import requests
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            url = 'https://www.slickcharts.com/nasdaq100'
+            response = requests.get(url, headers=headers, timeout=10)
+            tables = pd.read_html(response.text)
+            for table in tables:
+                if 'Symbol' in table.columns:
+                    tickers = table['Symbol'].tolist()
+                    logger.info(f"Found {len(tickers)} NASDAQ 100 stocks from slickcharts")
+                    return tickers
+        except Exception as e:
+            logger.warning(f"slickcharts NASDAQ 100 failed: {str(e)}")
+
+        # Fallback: Expanded NASDAQ 100 list
+        logger.error("All NASDAQ 100 sources failed, using fallback list")
+        return [
+            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'AVGO', 'COST',
+            'NFLX', 'ADBE', 'PEP', 'CSCO', 'AMD', 'CMCSA', 'INTC', 'TMUS', 'TXN', 'QCOM',
+            'AMGN', 'INTU', 'AMAT', 'ISRG', 'HON', 'BKNG', 'SBUX', 'VRTX', 'GILD', 'MDLZ',
+            'ADP', 'REGN', 'ADI', 'LRCX', 'PYPL', 'MU', 'SNPS', 'PANW', 'KLAC', 'CDNS',
+            'MELI', 'MAR', 'ORLY', 'ASML', 'ABNB', 'CTAS', 'MNST', 'FTNT', 'CHTR', 'MRVL'
+        ]
 
     def collect_multiple_stocks(self,
                                symbols: List[str],

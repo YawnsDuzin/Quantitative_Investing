@@ -148,6 +148,23 @@ class DatabaseManager:
         );
 
         CREATE INDEX IF NOT EXISTS idx_holdings_portfolio_date ON portfolio_holdings(portfolio_name, date);
+
+        -- Background Tasks
+        CREATE TABLE IF NOT EXISTS background_tasks (
+            id TEXT PRIMARY KEY,
+            task_type TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            total_items INTEGER DEFAULT 0,
+            completed_items INTEGER DEFAULT 0,
+            current_item TEXT,
+            result TEXT,
+            error_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tasks_status ON background_tasks(status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_created ON background_tasks(created_at);
         """
 
         # For SQLite, execute each statement separately
@@ -173,8 +190,44 @@ class DatabaseManager:
             df: DataFrame with columns: symbol, date, open, high, low, close, volume
             if_exists: 'append' or 'replace'
         """
-        df.to_sql('stock_prices', self.engine, if_exists=if_exists, index=False)
-        logger.info(f"Saved {len(df)} price records to database")
+        if df.empty:
+            logger.warning("No data to save")
+            return
+
+        if self.db_type == 'sqlite' and if_exists == 'append':
+            # Use INSERT OR REPLACE to handle duplicates
+            with self.engine.begin() as conn:
+                for _, row in df.iterrows():
+                    try:
+                        # Convert Timestamp to string for SQLite compatibility
+                        date_val = row.get('date')
+                        if hasattr(date_val, 'strftime'):
+                            date_val = date_val.strftime('%Y-%m-%d')
+                        elif hasattr(date_val, 'isoformat'):
+                            date_val = date_val.isoformat()[:10]
+
+                        conn.execute(text("""
+                            INSERT OR REPLACE INTO stock_prices
+                            (symbol, date, open, high, low, close, volume, adj_close, market)
+                            VALUES (:symbol, :date, :open, :high, :low, :close, :volume, :adj_close, :market)
+                        """), {
+                            'symbol': row.get('symbol'),
+                            'date': date_val,
+                            'open': float(row.get('open')) if pd.notna(row.get('open')) else None,
+                            'high': float(row.get('high')) if pd.notna(row.get('high')) else None,
+                            'low': float(row.get('low')) if pd.notna(row.get('low')) else None,
+                            'close': float(row.get('close')) if pd.notna(row.get('close')) else None,
+                            'volume': int(row.get('volume')) if pd.notna(row.get('volume')) else None,
+                            'adj_close': float(row.get('adj_close')) if pd.notna(row.get('adj_close')) else None,
+                            'market': row.get('market')
+                        })
+                    except Exception as e:
+                        logger.warning(f"Error inserting row: {e}")
+                        continue
+            logger.info(f"Saved {len(df)} price records to database")
+        else:
+            df.to_sql('stock_prices', self.engine, if_exists=if_exists, index=False)
+            logger.info(f"Saved {len(df)} price records to database")
 
     def get_stock_prices(self,
                         symbol: Union[str, List[str]] = None,

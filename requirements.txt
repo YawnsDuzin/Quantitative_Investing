@@ -23,7 +23,7 @@ yfinance>=0.2.28
 pandas-datareader>=0.10.0
 
 # Technical Indicators
-ta-lib-prebuilt>=0.4.28
+# ta-lib-prebuilt>=0.4.28  # Commented out - not compatible with Python 3.13
 pandas-ta>=0.3.14b0
 
 # Statistical Analysis

@@ -117,23 +117,38 @@ def stock_search():
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
         from src.utils.database import get_db
 
-        db = get_db()
-        stocks = db.get_stock_info()
+        quant_db = get_db()
+
+        # First try stock_info table
+        stocks = quant_db.get_stock_info()
+
+        # If stock_info is empty, get unique symbols from stock_prices
+        if stocks.empty:
+            stocks = quant_db.execute_query("""
+                SELECT DISTINCT symbol, market
+                FROM stock_prices
+                WHERE symbol IS NOT NULL
+                ORDER BY symbol
+            """)
+            # Add empty name column for compatibility
+            if not stocks.empty:
+                stocks['name'] = stocks['symbol']
 
         if stocks.empty:
             return jsonify([])
 
-        # Filter by query
-        mask = (
-            stocks['symbol'].str.contains(query, case=False, na=False) |
-            stocks['name'].str.contains(query, case=False, na=False)
-        )
+        # Filter by query (search in symbol column)
+        mask = stocks['symbol'].str.contains(query, case=False, na=False)
+
+        # Also search in name if column exists
+        if 'name' in stocks.columns:
+            mask |= stocks['name'].str.contains(query, case=False, na=False)
 
         if market != 'all':
             if market == 'KR':
                 mask &= stocks['market'].isin(['KOSPI', 'KOSDAQ'])
             elif market == 'US':
-                mask &= stocks['market'].isin(['NYSE', 'NASDAQ'])
+                mask &= stocks['market'].isin(['NYSE', 'NASDAQ', 'US', 'NMS', 'NGM', 'NCM'])
 
         results = stocks[mask].head(20).to_dict('records')
         return jsonify(results)
@@ -260,6 +275,64 @@ def strategy_templates():
         }
     ]
     return jsonify(templates)
+
+
+@api_bp.route('/task/<task_id>')
+@login_required
+def get_task_status(task_id):
+    """Get background task status"""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from src.utils.task_manager import get_task_manager
+
+        task_manager = get_task_manager()
+        task = task_manager.get_task(task_id)
+
+        if not task:
+            return jsonify({'error': '작업을 찾을 수 없습니다.'}), 404
+
+        return jsonify(task)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/tasks/active')
+@login_required
+def get_active_tasks():
+    """Get all active background tasks"""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from src.utils.task_manager import get_task_manager
+
+        task_manager = get_task_manager()
+        task_type = request.args.get('type')
+        tasks = task_manager.get_active_tasks(task_type)
+
+        return jsonify(tasks)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/task/<task_id>/cancel', methods=['POST'])
+@login_required
+def cancel_task(task_id):
+    """Cancel a running task"""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from src.utils.task_manager import get_task_manager
+
+        task_manager = get_task_manager()
+        success = task_manager.cancel_task(task_id)
+
+        if success:
+            return jsonify({'status': 'cancelled', 'message': '작업이 취소되었습니다.'})
+        else:
+            return jsonify({'error': '작업을 취소할 수 없습니다.'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @api_bp.route('/market-overview')
