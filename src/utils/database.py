@@ -270,7 +270,12 @@ class DatabaseManager:
         df = pd.read_sql(text(query), self.engine, params=params)
 
         if not df.empty and 'date' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
+            # Handle various date formats including those with time components
+            # First convert to string and extract only the date part (YYYY-MM-DD)
+            date_str = df['date'].astype(str).str.strip()
+            # Extract first 10 characters (YYYY-MM-DD) to handle formats like "2020-01-01 00:00:00"
+            date_str = date_str.str[:10]
+            df['date'] = pd.to_datetime(date_str, format='%Y-%m-%d', errors='coerce')
 
         return df
 

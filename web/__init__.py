@@ -82,6 +82,28 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
 
+        # Add new columns to existing tables if needed (for progress tracking)
+        try:
+            from sqlalchemy import text
+            with db.engine.connect() as conn:
+                # Check if progress column exists in backtest_results
+                result = conn.execute(text("PRAGMA table_info(backtest_results)"))
+                columns = [row[1] for row in result.fetchall()]
+
+                if 'progress' not in columns:
+                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN progress INTEGER DEFAULT 0"))
+                if 'current_step' not in columns:
+                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN current_step VARCHAR(100)"))
+                if 'total_days' not in columns:
+                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN total_days INTEGER"))
+                if 'processed_days' not in columns:
+                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN processed_days INTEGER DEFAULT 0"))
+                if 'started_at' not in columns:
+                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN started_at DATETIME"))
+                conn.commit()
+        except Exception as e:
+            app.logger.warning(f"Migration warning: {e}")
+
     # Register error handlers
     register_error_handlers(app)
 

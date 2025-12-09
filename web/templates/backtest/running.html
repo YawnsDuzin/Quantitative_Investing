@@ -5,24 +5,102 @@
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8">
             <div class="card">
-                <div class="card-body text-center py-5">
-                    <div class="spinner-border text-primary mb-4" role="status" style="width: 4rem; height: 4rem;">
-                        <span class="visually-hidden">Loading...</span>
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> {{ backtest.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Status indicator -->
+                    <div class="text-center mb-4">
+                        <div id="spinner" class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div id="status-icon-success" class="text-success mb-3" style="display: none;">
+                            <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
+                        </div>
+                        <div id="status-icon-error" class="text-danger mb-3" style="display: none;">
+                            <i class="bi bi-x-circle-fill" style="font-size: 3rem;"></i>
+                        </div>
+                        <h4 id="status-title">백테스트 실행 중...</h4>
                     </div>
-                    <h3>{{ backtest.name }}</h3>
-                    <p class="text-muted mb-4">백테스트를 실행하고 있습니다...</p>
 
-                    <div class="progress mb-4" style="height: 20px;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    <!-- Progress bar -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="current-step" class="text-muted">초기화 중...</span>
+                            <span id="progress-percent" class="fw-bold">0%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                                 role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="status-message" class="alert alert-info">
-                        <i class="bi bi-clock"></i> 데이터를 분석하고 있습니다. 잠시만 기다려주세요.
+                    <!-- Detail info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">처리된 일수</span>
+                                        <span id="processed-days" class="fw-bold">0 / -</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">경과 시간</span>
+                                        <span id="elapsed-time" class="fw-bold">00:00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+                    <!-- Backtest info -->
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted" style="width: 30%;">전략</td>
+                                    <td class="fw-bold">{{ backtest.strategy_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">기간</td>
+                                    <td>{{ backtest.start_date.strftime('%Y-%m-%d') }} ~ {{ backtest.end_date.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">초기 자본</td>
+                                    <td>{{ "{:,.0f}".format(backtest.initial_capital) }}원</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">리밸런싱</td>
+                                    <td>{{ backtest.rebalance_frequency }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Error message -->
+                    <div id="error-message" class="alert alert-danger" style="display: none;">
+                        <i class="bi bi-exclamation-triangle"></i> <span id="error-text"></span>
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="text-center">
+                        <a href="{{ url_for('backtest.index') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 목록으로 돌아가기
+                        </a>
+                        <a id="view-results-btn" href="{{ url_for('backtest.view', id=backtest.id) }}"
+                           class="btn btn-primary" style="display: none;">
+                            <i class="bi bi-bar-chart"></i> 결과 보기
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -32,32 +110,162 @@
 
 {% block extra_js %}
 <script>
-// Execute backtest
-fetch('{{ url_for("backtest.execute", id=backtest.id) }}', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token() }}'
+const backtestId = {{ backtest.id }};
+let pollInterval = null;
+let isStarted = false;
+
+// Format seconds to mm:ss or hh:mm:ss
+function formatTime(seconds) {
+    if (seconds === null || seconds === undefined) return '00:00';
+
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hrs > 0) {
+        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
-})
-.then(response => response.json())
-.then(data => {
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Update UI with progress data
+function updateProgress(data) {
+    // Update progress bar
+    const progress = data.progress || 0;
+    document.getElementById('progress-bar').style.width = progress + '%';
+    document.getElementById('progress-bar').setAttribute('aria-valuenow', progress);
+    document.getElementById('progress-percent').textContent = progress + '%';
+
+    // Update current step
+    document.getElementById('current-step').textContent = data.current_step || '처리 중...';
+
+    // Update processed days
+    const totalDays = data.total_days || '-';
+    const processedDays = data.processed_days || 0;
+    document.getElementById('processed-days').textContent = `${processedDays} / ${totalDays}`;
+
+    // Update elapsed time
+    document.getElementById('elapsed-time').textContent = formatTime(data.elapsed_seconds);
+
+    // Handle status changes
     if (data.status === 'completed') {
-        window.location.href = data.redirect;
+        showCompleted(data.redirect);
     } else if (data.status === 'failed') {
-        document.getElementById('status-message').style.display = 'none';
-        document.getElementById('error-message').style.display = 'block';
-        document.getElementById('error-message').innerHTML = '<i class="bi bi-exclamation-triangle"></i> 오류: ' + data.error;
-        document.querySelector('.spinner-border').style.display = 'none';
-        document.querySelector('.progress').style.display = 'none';
+        showError(data.error_message || '알 수 없는 오류가 발생했습니다.');
     }
-})
-.catch(error => {
-    document.getElementById('status-message').style.display = 'none';
+}
+
+// Show completed state
+function showCompleted(redirectUrl) {
+    // Stop polling
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+
+    // Update UI
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('status-icon-success').style.display = 'block';
+    document.getElementById('status-title').textContent = '백테스트 완료!';
+    document.getElementById('progress-bar').classList.remove('progress-bar-animated', 'progress-bar-striped');
+    document.getElementById('progress-bar').classList.add('bg-success');
+    document.getElementById('view-results-btn').style.display = 'inline-block';
+
+    // Auto redirect after 2 seconds
+    setTimeout(() => {
+        window.location.href = redirectUrl;
+    }, 2000);
+}
+
+// Show error state
+function showError(message) {
+    // Stop polling
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+
+    // Update UI
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('status-icon-error').style.display = 'block';
+    document.getElementById('status-title').textContent = '백테스트 실패';
+    document.getElementById('progress-bar').classList.remove('progress-bar-animated', 'progress-bar-striped');
+    document.getElementById('progress-bar').classList.add('bg-danger');
     document.getElementById('error-message').style.display = 'block';
-    document.getElementById('error-message').innerHTML = '<i class="bi bi-exclamation-triangle"></i> 네트워크 오류가 발생했습니다.';
-    document.querySelector('.spinner-border').style.display = 'none';
-    document.querySelector('.progress').style.display = 'none';
+    document.getElementById('error-text').textContent = message;
+}
+
+// Poll for progress updates
+function pollProgress() {
+    fetch(`/backtest/${backtestId}/progress`)
+        .then(response => response.json())
+        .then(data => {
+            updateProgress(data);
+        })
+        .catch(error => {
+            console.error('Progress poll error:', error);
+        });
+}
+
+// Start the backtest
+function startBacktest() {
+    fetch(`/backtest/${backtestId}/execute`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'completed') {
+            showCompleted(data.redirect);
+        } else if (data.status === 'failed') {
+            showError(data.error);
+        } else {
+            // Start polling for progress
+            isStarted = true;
+            pollInterval = setInterval(pollProgress, 1000);  // Poll every second
+        }
+    })
+    .catch(error => {
+        showError('네트워크 오류가 발생했습니다: ' + error.message);
+    });
+}
+
+// Check initial status and start if needed
+function checkAndStart() {
+    fetch(`/backtest/${backtestId}/progress`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'completed') {
+                showCompleted(data.redirect || `/backtest/${backtestId}`);
+            } else if (data.status === 'failed') {
+                showError(data.error_message || '이전에 실패한 백테스트입니다.');
+            } else if (data.status === 'running') {
+                // Already running, just poll for updates
+                isStarted = true;
+                updateProgress(data);
+                pollInterval = setInterval(pollProgress, 1000);
+            } else {
+                // Not started yet, start it
+                startBacktest();
+            }
+        })
+        .catch(error => {
+            // If can't check status, try to start
+            startBacktest();
+        });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', checkAndStart);
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+    if (pollInterval) {
+        clearInterval(pollInterval);
+    }
 });
 </script>
 {% endblock %}

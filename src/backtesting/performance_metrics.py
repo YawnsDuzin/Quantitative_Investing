@@ -16,21 +16,28 @@ class PerformanceMetrics:
     Calculator for portfolio performance metrics
     """
 
-    def __init__(self, portfolio_df: pd.DataFrame, risk_free_rate: float = 0.03):
+    def __init__(self, portfolio_data, risk_free_rate: float = 0.03):
         """
         Initialize performance metrics calculator
 
         Args:
-            portfolio_df: DataFrame with portfolio values and returns
+            portfolio_data: DataFrame with portfolio values and returns, OR Series of portfolio values
             risk_free_rate: Annual risk-free rate (default 3%)
         """
-        self.portfolio_df = portfolio_df
         self.risk_free_rate = risk_free_rate
 
-        # Ensure returns column exists
-        if 'returns' not in portfolio_df.columns:
-            if 'portfolio_value' in portfolio_df.columns:
-                self.portfolio_df['returns'] = portfolio_df['portfolio_value'].pct_change()
+        # Handle Series input (just portfolio values)
+        if isinstance(portfolio_data, pd.Series):
+            self.portfolio_df = pd.DataFrame({
+                'portfolio_value': portfolio_data
+            })
+            self.portfolio_df['returns'] = self.portfolio_df['portfolio_value'].pct_change()
+        else:
+            self.portfolio_df = portfolio_data.copy()
+            # Ensure returns column exists
+            if 'returns' not in self.portfolio_df.columns:
+                if 'portfolio_value' in self.portfolio_df.columns:
+                    self.portfolio_df['returns'] = self.portfolio_df['portfolio_value'].pct_change()
 
     def total_return(self) -> float:
         """

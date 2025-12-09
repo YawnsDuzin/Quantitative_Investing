@@ -45,6 +45,13 @@ class BacktestResult(db.Model):
     status = db.Column(db.String(20), default='pending')  # pending, running, completed, failed
     error_message = db.Column(db.Text)
 
+    # Progress tracking
+    progress = db.Column(db.Integer, default=0)  # 0-100
+    current_step = db.Column(db.String(100))  # Current step description
+    total_days = db.Column(db.Integer)  # Total trading days to process
+    processed_days = db.Column(db.Integer, default=0)  # Days processed so far
+    started_at = db.Column(db.DateTime)  # When backtest started
+
     # Relationships
     trades = db.relationship('BacktestTrade', backref='backtest', lazy='dynamic',
                             cascade='all, delete-orphan')
@@ -105,7 +112,12 @@ class BacktestResult(db.Model):
             'calmar_ratio': self.calmar_ratio,
             'win_rate': self.win_rate,
             'profit_factor': self.profit_factor,
-            'status': self.status
+            'status': self.status,
+            'progress': self.progress,
+            'current_step': self.current_step,
+            'total_days': self.total_days,
+            'processed_days': self.processed_days,
+            'started_at': self.started_at.isoformat() if self.started_at else None
         }
 
     def __repr__(self):

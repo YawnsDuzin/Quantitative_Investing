@@ -31,8 +31,8 @@ def index():
 
         kospi_count = 0
         kosdaq_count = 0
-        sp500_count = 0
-        nasdaq100_count = 0
+        nyse_count = 0
+        nasdaq_count = 0
         if not market_counts.empty:
             for _, row in market_counts.iterrows():
                 market = row['market']
@@ -41,16 +41,16 @@ def index():
                     kospi_count = count
                 elif market == 'KOSDAQ':
                     kosdaq_count = count
-                elif market == 'S&P500':
-                    sp500_count = count
-                elif market == 'NASDAQ100':
-                    nasdaq100_count = count
-                elif market in ['NYSE', 'US']:
-                    # Legacy US market data - count as S&P500
-                    sp500_count += count
-                elif market in ['NASDAQ', 'NMS', 'NGM', 'NCM']:
-                    # Legacy NASDAQ data - count as NASDAQ100
-                    nasdaq100_count += count
+                elif market == 'NYSE':
+                    nyse_count = count
+                elif market == 'NASDAQ':
+                    nasdaq_count = count
+                elif market in ['US', 'S&P500']:
+                    # Legacy US market data - count as NYSE
+                    nyse_count += count
+                elif market in ['NASDAQ100', 'NMS', 'NGM', 'NCM']:
+                    # Legacy NASDAQ data - count as NASDAQ
+                    nasdaq_count += count
 
         # Get date range and total records
         stats = db.execute_query("""
@@ -70,8 +70,8 @@ def index():
         db_info = {
             'kospi_stocks': kospi_count,
             'kosdaq_stocks': kosdaq_count,
-            'sp500_stocks': sp500_count,
-            'nasdaq100_stocks': nasdaq100_count,
+            'nyse_stocks': nyse_count,
+            'nasdaq_stocks': nasdaq_count,
             'data_start': data_start,
             'data_end': data_end,
             'total_records': total_records
@@ -255,17 +255,19 @@ def collect_us():
         task_manager = get_task_manager()
 
         # Get parameters from request
-        index = request.json.get('index', 'SP500')  # SP500 or NASDAQ100
+        market = request.json.get('market', 'NYSE')  # NYSE or NASDAQ (full exchange)
         start_date = request.json.get('start_date', '2020-01-01')
         end_date = request.json.get('end_date', datetime.now().strftime('%Y-%m-%d'))
 
-        # Get tickers
+        # Get tickers based on market/exchange
         try:
             limit = request.json.get('limit', 0)
-            if index == 'SP500':
-                tickers = collector.get_sp500_tickers()
+            if market == 'NYSE':
+                tickers = collector.get_nyse_tickers()
+            elif market == 'NASDAQ':
+                tickers = collector.get_nasdaq_tickers()
             else:
-                tickers = collector.get_nasdaq100_tickers()
+                return jsonify({'error': f'지원하지 않는 시장: {market}'}), 400
             if limit > 0:
                 tickers = tickers[:limit]
         except Exception as e:
@@ -278,7 +280,7 @@ def collect_us():
         task_id = task_manager.create_task('us_stock_collection', total_items=len(tickers))
 
         # Define background collection function
-        def collect_stocks_background(task_id, ticker_list, start, end, idx):
+        def collect_stocks_background(task_id, ticker_list, start, end, mkt):
             from src.data_collection.us_stock_collector import USStockCollector
             from src.utils.task_manager import get_task_manager
             from src.utils.database import get_db
@@ -290,8 +292,8 @@ def collect_us():
             tm = get_task_manager()
             db = get_db()
 
-            # Use index name (SP500 or NASDAQ100) as market identifier
-            market_name = 'S&P500' if idx == 'SP500' else 'NASDAQ100'
+            # Use market name (NYSE or NASDAQ) as market identifier
+            market_name = mkt  # NYSE or NASDAQ
 
             collected_count = 0
             for i, ticker in enumerate(ticker_list):
@@ -305,7 +307,7 @@ def collect_us():
                 try:
                     df = collector.get_price_data(ticker, start, end)
                     if not df.empty:
-                        # Override market with index name
+                        # Override market with exchange name
                         df['market'] = market_name
                         db.save_stock_prices(df, if_exists='append')
 
@@ -315,7 +317,7 @@ def collect_us():
                         sector = stock_info.get('sector')
                         industry = stock_info.get('industry')
 
-                        # Save to stock_info table with index-based market
+                        # Save to stock_info table with exchange-based market
                         with db.engine.begin() as conn:
                             conn.execute(text("""
                                 INSERT OR REPLACE INTO stock_info
@@ -344,7 +346,7 @@ def collect_us():
         task_manager.run_in_background(
             task_id,
             collect_stocks_background,
-            tickers, start_date, end_date, index
+            tickers, start_date, end_date, market
         )
 
         return jsonify({
@@ -415,6 +417,173 @@ def stock_chart_data(symbol):
         }
 
         return jsonify(data)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@data_bp.route('/collect/all', methods=['POST'])
+@login_required
+def collect_all():
+    """Collect all market data (KOSPI, KOSDAQ, NYSE, NASDAQ) - runs in background"""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from src.utils.task_manager import get_task_manager
+
+        task_manager = get_task_manager()
+
+        # Get parameters from request
+        start_date = request.json.get('start_date', '2020-01-01')
+        end_date = request.json.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+        markets = request.json.get('markets', ['KOSPI', 'KOSDAQ', 'NYSE', 'NASDAQ'])
+
+        # Create background task
+        task_id = task_manager.create_task('all_market_collection', total_items=len(markets))
+
+        # Define background collection function
+        def collect_all_markets_background(task_id, start, end, market_list):
+            from src.data_collection.kr_stock_collector import KoreanStockCollector
+            from src.data_collection.us_stock_collector import USStockCollector
+            from src.utils.task_manager import get_task_manager
+            from src.utils.database import get_db
+            from sqlalchemy import text
+            from datetime import datetime
+            import time
+
+            kr_collector = KoreanStockCollector()
+            us_collector = USStockCollector()
+            tm = get_task_manager()
+            db = get_db()
+
+            total_collected = 0
+            market_results = {}
+
+            for market_idx, market in enumerate(market_list):
+                # Check if task was cancelled
+                task = tm.get_task(task_id)
+                if task and task['status'] == 'cancelled':
+                    return f'취소됨: {total_collected}개 수집 완료'
+
+                tm.update_task(task_id, current_item=f'{market} 종목 목록 로딩 중...', completed_items=market_idx)
+
+                try:
+                    # Get tickers based on market
+                    if market == 'KOSPI':
+                        stocks = kr_collector.get_stock_list(market='KOSPI')
+                        code_col = 'symbol' if 'symbol' in stocks.columns else 'Code'
+                        name_col = 'name' if 'name' in stocks.columns else 'Name'
+                        tickers = stocks[code_col].tolist()
+                        names = dict(zip(stocks[code_col].tolist(),
+                                        stocks[name_col].tolist() if name_col in stocks.columns else stocks[code_col].tolist()))
+                        collector_type = 'kr'
+                    elif market == 'KOSDAQ':
+                        stocks = kr_collector.get_stock_list(market='KOSDAQ')
+                        code_col = 'symbol' if 'symbol' in stocks.columns else 'Code'
+                        name_col = 'name' if 'name' in stocks.columns else 'Name'
+                        tickers = stocks[code_col].tolist()
+                        names = dict(zip(stocks[code_col].tolist(),
+                                        stocks[name_col].tolist() if name_col in stocks.columns else stocks[code_col].tolist()))
+                        collector_type = 'kr'
+                    elif market == 'NYSE':
+                        tickers = us_collector.get_nyse_tickers()
+                        names = {}
+                        collector_type = 'us'
+                    elif market == 'NASDAQ':
+                        tickers = us_collector.get_nasdaq_tickers()
+                        names = {}
+                        collector_type = 'us'
+                    else:
+                        continue
+
+                    market_collected = 0
+                    total_tickers = len(tickers)
+
+                    for i, ticker in enumerate(tickers):
+                        # Check if task was cancelled
+                        task = tm.get_task(task_id)
+                        if task and task['status'] == 'cancelled':
+                            return f'취소됨: {total_collected}개 수집 완료'
+
+                        # Update progress with market and ticker info
+                        progress_msg = f'{market} ({i+1}/{total_tickers}): {ticker}'
+                        tm.update_task(task_id, current_item=progress_msg, completed_items=market_idx)
+
+                        try:
+                            if collector_type == 'kr':
+                                df = kr_collector.get_price_data(ticker, start, end)
+                                if not df.empty:
+                                    df['market'] = market
+                                    db.save_stock_prices(df, if_exists='append')
+
+                                    stock_name = names.get(ticker, ticker)
+                                    with db.engine.begin() as conn:
+                                        conn.execute(text("""
+                                            INSERT OR REPLACE INTO stock_info
+                                            (symbol, name, market, last_updated)
+                                            VALUES (:symbol, :name, :market, :last_updated)
+                                        """), {
+                                            'symbol': ticker,
+                                            'name': stock_name,
+                                            'market': market,
+                                            'last_updated': datetime.now().isoformat()
+                                        })
+                                    market_collected += 1
+                            else:
+                                df = us_collector.get_price_data(ticker, start, end)
+                                if not df.empty:
+                                    df['market'] = market
+                                    db.save_stock_prices(df, if_exists='append')
+
+                                    stock_info = us_collector.get_stock_info(ticker)
+                                    stock_name = stock_info.get('name', ticker)
+                                    sector = stock_info.get('sector')
+                                    industry = stock_info.get('industry')
+
+                                    with db.engine.begin() as conn:
+                                        conn.execute(text("""
+                                            INSERT OR REPLACE INTO stock_info
+                                            (symbol, name, market, sector, industry, last_updated)
+                                            VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
+                                        """), {
+                                            'symbol': ticker,
+                                            'name': stock_name,
+                                            'market': market,
+                                            'sector': sector,
+                                            'industry': industry,
+                                            'last_updated': datetime.now().isoformat()
+                                        })
+                                    market_collected += 1
+                        except Exception as e:
+                            pass  # Skip failed stocks
+
+                        # Rate limiting
+                        time.sleep(0.5 if collector_type == 'kr' else 1.0)
+
+                    market_results[market] = market_collected
+                    total_collected += market_collected
+
+                except Exception as e:
+                    market_results[market] = f'오류: {str(e)}'
+
+            tm.update_task(task_id, completed_items=len(market_list))
+
+            # Format result message
+            result_parts = [f'{m}: {c}개' for m, c in market_results.items()]
+            return f'수집 완료 - ' + ', '.join(result_parts)
+
+        # Run in background
+        task_manager.run_in_background(
+            task_id,
+            collect_all_markets_background,
+            start_date, end_date, markets
+        )
+
+        return jsonify({
+            'status': 'started',
+            'task_id': task_id,
+            'total': len(markets),
+            'message': f'{len(markets)}개 시장 데이터 수집 시작 ({", ".join(markets)})'
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

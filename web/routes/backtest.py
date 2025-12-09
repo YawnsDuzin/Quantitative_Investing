@@ -1,15 +1,178 @@
 """
 Backtest routes
 """
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import login_required, current_user
 from web import db
 from web.models import BacktestResult, BacktestTrade, SavedStrategy
 from web.forms.backtest import BacktestForm
 from datetime import datetime
 import json
+import threading
 
 backtest_bp = Blueprint('backtest', __name__)
+
+
+def run_backtest_task(app, backtest_id):
+    """Background task to run backtest"""
+    with app.app_context():
+        backtest = BacktestResult.query.get(backtest_id)
+        if not backtest:
+            return
+
+        try:
+            backtest.status = 'running'
+            backtest.started_at = datetime.utcnow()
+            backtest.progress = 0
+            backtest.current_step = '초기화 중...'
+            db.session.commit()
+
+            # Import and run the actual backtest
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+            from src.strategies.quant_strategies import create_strategy
+            from src.backtesting.backtester import Backtester
+            from src.backtesting.performance_metrics import PerformanceMetrics
+            from src.utils.database import get_db
+
+            # Update progress: Loading parameters
+            backtest.progress = 5
+            backtest.current_step = '파라미터 로딩 중...'
+            db.session.commit()
+
+            # Get parameters
+            params = backtest.parameters
+
+            # Get strategy name (remove 'custom_' prefix if present)
+            strategy_name = backtest.strategy_name
+            if strategy_name.startswith('custom_'):
+                saved_strategy = SavedStrategy.query.get(int(strategy_name.split('_')[1]))
+                if saved_strategy:
+                    strategy_name = saved_strategy.strategy_type
+                    params.update(saved_strategy.config)
+
+            # Update progress: Creating strategy
+            backtest.progress = 10
+            backtest.current_step = f'{strategy_name} 전략 생성 중...'
+            db.session.commit()
+
+            # Create strategy config
+            factor_weights = params.get('factor_weights', {})
+            strategy_config = {
+                'max_positions': params.get('max_positions', 20),
+                'factor_weights': factor_weights,
+                'stop_loss': params.get('stop_loss'),
+                'rebalancing_frequency': backtest.rebalance_frequency
+            }
+            strategy = create_strategy(strategy_name, config=strategy_config)
+
+            # Update progress: Loading data
+            backtest.progress = 15
+            backtest.current_step = '주가 데이터 로딩 중...'
+            db.session.commit()
+
+            # Get data from database
+            quant_db = get_db()
+
+            # Get stock data
+            data = quant_db.get_stock_prices(
+                start_date=backtest.start_date.strftime('%Y-%m-%d'),
+                end_date=backtest.end_date.strftime('%Y-%m-%d')
+            )
+
+            if data.empty:
+                raise ValueError("데이터가 없습니다. 먼저 데이터를 수집해주세요.")
+
+            # Calculate total trading days
+            trading_days = data['date'].nunique() if 'date' in data.columns else len(data)
+            backtest.total_days = trading_days
+            backtest.processed_days = 0
+
+            # Update progress: Running backtest
+            backtest.progress = 20
+            backtest.current_step = f'백테스트 실행 중... (총 {trading_days}일)'
+            db.session.commit()
+
+            # Run backtest with progress callback
+            def progress_callback(current_day, total_days, current_date=None):
+                # Update progress (20% to 80% range for actual backtest)
+                progress_pct = 20 + int((current_day / total_days) * 60)
+                backtest.progress = min(progress_pct, 80)
+                backtest.processed_days = current_day
+                if current_date:
+                    backtest.current_step = f'백테스트 실행 중... ({current_date}, {current_day}/{total_days}일)'
+                else:
+                    backtest.current_step = f'백테스트 실행 중... ({current_day}/{total_days}일)'
+                db.session.commit()
+
+            backtester = Backtester(
+                strategy=strategy,
+                initial_capital=backtest.initial_capital,
+                commission=params.get('commission', 0.0015),
+                slippage=params.get('slippage', 0.001)
+            )
+
+            results = backtester.run(data, progress_callback=progress_callback)
+
+            # Update progress: Calculating metrics
+            backtest.progress = 85
+            backtest.current_step = '성과 지표 계산 중...'
+            db.session.commit()
+
+            # Calculate performance metrics
+            metrics = PerformanceMetrics(results['portfolio_value'])
+
+            # Update backtest record
+            backtest.total_return = metrics.total_return()
+            backtest.annual_return = metrics.annual_return()
+            backtest.volatility = metrics.volatility()
+            backtest.sharpe_ratio = metrics.sharpe_ratio()
+            backtest.sortino_ratio = metrics.sortino_ratio()
+            backtest.max_drawdown = metrics.max_drawdown()
+            backtest.calmar_ratio = metrics.calmar_ratio()
+            backtest.win_rate = metrics.win_rate()
+            backtest.profit_factor = metrics.profit_factor()
+
+            # Update progress: Saving results
+            backtest.progress = 90
+            backtest.current_step = '결과 저장 중...'
+            db.session.commit()
+
+            # Store portfolio values
+            portfolio_values = results['portfolio_value'].to_dict()
+            backtest.portfolio_values = portfolio_values
+
+            # Store trades
+            backtest.progress = 95
+            backtest.current_step = '거래 내역 저장 중...'
+            db.session.commit()
+
+            trades_df = backtester.get_trades_df()
+            for _, trade in trades_df.iterrows():
+                bt_trade = BacktestTrade(
+                    backtest_id=backtest.id,
+                    date=trade['date'],
+                    symbol=trade['symbol'],
+                    action=trade['action'],
+                    shares=trade['shares'],
+                    price=trade['price'],
+                    value=trade['value'],
+                    commission=trade.get('commission', 0)
+                )
+                db.session.add(bt_trade)
+
+            backtest.status = 'completed'
+            backtest.progress = 100
+            backtest.current_step = '완료!'
+            db.session.commit()
+
+        except Exception as e:
+            backtest.status = 'failed'
+            backtest.error_message = str(e)
+            backtest.current_step = f'오류: {str(e)[:100]}'
+            db.session.commit()
 
 
 @backtest_bp.route('/')
@@ -111,124 +274,66 @@ def run(id):
 @backtest_bp.route('/<int:id>/execute', methods=['POST'])
 @login_required
 def execute(id):
-    """Execute backtest (AJAX endpoint)"""
+    """Start backtest execution in background (AJAX endpoint)"""
     backtest = BacktestResult.query.get_or_404(id)
 
     if backtest.user_id != current_user.id:
         return jsonify({'error': '접근 권한이 없습니다.'}), 403
 
-    try:
-        backtest.status = 'running'
-        db.session.commit()
+    # Check if already running or completed
+    if backtest.status == 'running':
+        return jsonify({
+            'status': 'running',
+            'message': '백테스트가 이미 실행 중입니다.'
+        })
 
-        # Import and run the actual backtest
-        import sys
-        from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        from src.strategies.quant_strategies import create_strategy
-        from src.backtesting.backtester import Backtester
-        from src.backtesting.performance_metrics import PerformanceMetrics
-        from src.utils.database import get_db
-
-        # Get parameters
-        params = backtest.parameters
-
-        # Get strategy name (remove 'custom_' prefix if present)
-        strategy_name = backtest.strategy_name
-        if strategy_name.startswith('custom_'):
-            saved_strategy = SavedStrategy.query.get(int(strategy_name.split('_')[1]))
-            if saved_strategy:
-                strategy_name = saved_strategy.strategy_type
-                params.update(saved_strategy.config)
-
-        # Create strategy
-        factor_weights = params.get('factor_weights', {})
-        strategy = create_strategy(
-            strategy_name,
-            max_positions=params.get('max_positions', 20),
-            factor_weights=factor_weights,
-            stop_loss=params.get('stop_loss'),
-            rebalancing_frequency=backtest.rebalance_frequency
-        )
-
-        # Get data from database
-        quant_db = get_db()
-
-        # Map market to database query
-        if backtest.market == 'KR':
-            markets = ['KOSPI', 'KOSDAQ']
-        else:
-            markets = ['NYSE', 'NASDAQ']
-
-        # Get stock data
-        data = quant_db.get_stock_prices(
-            start_date=backtest.start_date.strftime('%Y-%m-%d'),
-            end_date=backtest.end_date.strftime('%Y-%m-%d')
-        )
-
-        if data.empty:
-            raise ValueError("데이터가 없습니다. 먼저 데이터를 수집해주세요.")
-
-        # Run backtest
-        backtester = Backtester(
-            strategy=strategy,
-            initial_capital=backtest.initial_capital,
-            commission=params.get('commission', 0.0015),
-            slippage=params.get('slippage', 0.001)
-        )
-
-        results = backtester.run(data)
-
-        # Calculate performance metrics
-        metrics = PerformanceMetrics(results['portfolio_value'])
-
-        # Update backtest record
-        backtest.total_return = metrics.total_return()
-        backtest.annual_return = metrics.annual_return()
-        backtest.volatility = metrics.volatility()
-        backtest.sharpe_ratio = metrics.sharpe_ratio()
-        backtest.sortino_ratio = metrics.sortino_ratio()
-        backtest.max_drawdown = metrics.max_drawdown()
-        backtest.calmar_ratio = metrics.calmar_ratio()
-        backtest.win_rate = metrics.win_rate()
-        backtest.profit_factor = metrics.profit_factor()
-
-        # Store portfolio values
-        portfolio_values = results['portfolio_value'].to_dict()
-        backtest.portfolio_values = portfolio_values
-
-        # Store trades
-        trades_df = backtester.get_trades_df()
-        for _, trade in trades_df.iterrows():
-            bt_trade = BacktestTrade(
-                backtest_id=backtest.id,
-                date=trade['date'],
-                symbol=trade['symbol'],
-                action=trade['action'],
-                shares=trade['shares'],
-                price=trade['price'],
-                value=trade['value'],
-                commission=trade.get('commission', 0)
-            )
-            db.session.add(bt_trade)
-
-        backtest.status = 'completed'
-        db.session.commit()
-
+    if backtest.status == 'completed':
         return jsonify({
             'status': 'completed',
             'redirect': url_for('backtest.view', id=id)
         })
 
-    except Exception as e:
-        backtest.status = 'failed'
-        backtest.error_message = str(e)
-        db.session.commit()
-        return jsonify({
-            'status': 'failed',
-            'error': str(e)
-        }), 500
+    # Start backtest in background thread
+    app = current_app._get_current_object()
+    thread = threading.Thread(target=run_backtest_task, args=(app, backtest.id))
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({
+        'status': 'started',
+        'message': '백테스트가 시작되었습니다.'
+    })
+
+
+@backtest_bp.route('/<int:id>/progress')
+@login_required
+def progress(id):
+    """Get backtest progress (AJAX endpoint for polling)"""
+    backtest = BacktestResult.query.get_or_404(id)
+
+    if backtest.user_id != current_user.id:
+        return jsonify({'error': '접근 권한이 없습니다.'}), 403
+
+    # Calculate elapsed time
+    elapsed_seconds = None
+    if backtest.started_at:
+        elapsed = datetime.utcnow() - backtest.started_at
+        elapsed_seconds = int(elapsed.total_seconds())
+
+    response = {
+        'status': backtest.status,
+        'progress': backtest.progress or 0,
+        'current_step': backtest.current_step or '대기 중...',
+        'total_days': backtest.total_days,
+        'processed_days': backtest.processed_days or 0,
+        'elapsed_seconds': elapsed_seconds,
+        'error_message': backtest.error_message
+    }
+
+    if backtest.status == 'completed':
+        response['redirect'] = url_for('backtest.view', id=id)
+
+    return jsonify(response)
 
 
 @backtest_bp.route('/<int:id>/delete', methods=['POST'])

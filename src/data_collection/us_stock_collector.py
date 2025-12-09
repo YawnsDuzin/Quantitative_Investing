@@ -357,6 +357,102 @@ class USStockCollector:
             'MELI', 'MAR', 'ORLY', 'ASML', 'ABNB', 'CTAS', 'MNST', 'FTNT', 'CHTR', 'MRVL'
         ]
 
+    def get_nyse_tickers(self) -> List[str]:
+        """
+        Get list of all NYSE ticker symbols
+
+        Returns:
+            List of ticker symbols
+        """
+        tickers = []
+
+        # Method 1: Try FinanceDataReader (most reliable)
+        if FDR_AVAILABLE:
+            try:
+                nyse_stocks = fdr.StockListing('NYSE')
+                if nyse_stocks is not None and not nyse_stocks.empty:
+                    # FDR returns DataFrame with 'Symbol' column
+                    symbol_col = 'Symbol' if 'Symbol' in nyse_stocks.columns else 'symbol'
+                    if symbol_col in nyse_stocks.columns:
+                        tickers = nyse_stocks[symbol_col].tolist()
+                        # Filter out invalid tickers (those with special characters)
+                        tickers = [t for t in tickers if t and isinstance(t, str) and t.isalpha() or (t and '-' in t)]
+                        logger.info(f"Found {len(tickers)} NYSE stocks from FinanceDataReader")
+                        return tickers
+            except Exception as e:
+                logger.warning(f"FinanceDataReader NYSE failed: {str(e)}")
+
+        # Method 2: Try NASDAQ API
+        try:
+            import requests
+            url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=10000&exchange=nyse'
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            }
+            response = requests.get(url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                rows = data.get('data', {}).get('table', {}).get('rows', [])
+                if rows:
+                    tickers = [row.get('symbol', '') for row in rows if row.get('symbol')]
+                    logger.info(f"Found {len(tickers)} NYSE stocks from NASDAQ API")
+                    return tickers
+        except Exception as e:
+            logger.warning(f"NASDAQ API NYSE failed: {str(e)}")
+
+        # Fallback: Use S&P 500 as partial NYSE list
+        logger.error("All NYSE sources failed, using S&P 500 as fallback")
+        return self.get_sp500_tickers()
+
+    def get_nasdaq_tickers(self) -> List[str]:
+        """
+        Get list of all NASDAQ ticker symbols
+
+        Returns:
+            List of ticker symbols
+        """
+        tickers = []
+
+        # Method 1: Try FinanceDataReader (most reliable)
+        if FDR_AVAILABLE:
+            try:
+                nasdaq_stocks = fdr.StockListing('NASDAQ')
+                if nasdaq_stocks is not None and not nasdaq_stocks.empty:
+                    # FDR returns DataFrame with 'Symbol' column
+                    symbol_col = 'Symbol' if 'Symbol' in nasdaq_stocks.columns else 'symbol'
+                    if symbol_col in nasdaq_stocks.columns:
+                        tickers = nasdaq_stocks[symbol_col].tolist()
+                        # Filter out invalid tickers (those with special characters except hyphen)
+                        tickers = [t for t in tickers if t and isinstance(t, str) and (t.isalpha() or '-' in t)]
+                        logger.info(f"Found {len(tickers)} NASDAQ stocks from FinanceDataReader")
+                        return tickers
+            except Exception as e:
+                logger.warning(f"FinanceDataReader NASDAQ failed: {str(e)}")
+
+        # Method 2: Try NASDAQ API
+        try:
+            import requests
+            url = 'https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=10000&exchange=nasdaq'
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+            }
+            response = requests.get(url, headers=headers, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                rows = data.get('data', {}).get('table', {}).get('rows', [])
+                if rows:
+                    tickers = [row.get('symbol', '') for row in rows if row.get('symbol')]
+                    logger.info(f"Found {len(tickers)} NASDAQ stocks from NASDAQ API")
+                    return tickers
+        except Exception as e:
+            logger.warning(f"NASDAQ API NASDAQ failed: {str(e)}")
+
+        # Fallback: Use NASDAQ 100 as partial NASDAQ list
+        logger.error("All NASDAQ sources failed, using NASDAQ 100 as fallback")
+        return self.get_nasdaq100_tickers()
+
     def collect_multiple_stocks(self,
                                symbols: List[str],
                                start_date: Union[str, datetime] = None,
