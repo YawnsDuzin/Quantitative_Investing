@@ -11,8 +11,9 @@
 5. [데이터베이스 설정](#데이터베이스-설정)
 6. [로깅 설정](#로깅-설정)
 7. [기술적 지표 설정](#기술적-지표-설정)
-8. [알림 설정](#알림-설정)
-9. [설정 사용법](#설정-사용법)
+8. [종목 스크리닝 설정](#종목-스크리닝-설정)
+9. [알림 설정](#알림-설정)
+10. [설정 사용법](#설정-사용법)
 
 ---
 
@@ -50,6 +51,14 @@ logging:             # 로깅 설정
 indicators:          # 기술적 지표 설정
   sma_periods:       # 이동평균 기간
   rsi_period:        # RSI 기간
+
+screening:           # 종목 스크리닝 설정
+  defaults:          # 기본 조건
+  price:             # 가격 조건
+  technical:         # 기술적 조건
+  fundamental:       # 펀더멘털 조건
+  presets:           # 프리셋 전략
+  results:           # 결과 설정
 
 notification:        # 알림 설정
   telegram:          # 텔레그램 설정
@@ -377,6 +386,106 @@ indicators:
 
 ---
 
+## 종목 스크리닝 설정
+
+### screening
+
+```yaml
+screening:
+  # 기본 조건
+  defaults:
+    exclude_administrative: true  # 관리종목 제외
+    exclude_trading_halt: true    # 거래정지 제외
+    exclude_etf: true             # ETF 제외
+    min_market_cap: 50000000000   # 최소 시가총액 (500억)
+    min_volume: 10000             # 최소 거래량
+
+  # 가격 조건
+  price:
+    min_price: 1000       # 최소 주가
+    max_price: null       # 최대 주가 (null = 무제한)
+
+  # 기술적 지표 조건
+  technical:
+    rsi_oversold: 30      # RSI 과매도 기준
+    rsi_overbought: 70    # RSI 과매수 기준
+    sma_periods: [20, 50, 200]  # 이동평균 기간
+
+  # 펀더멘털 조건
+  fundamental:
+    max_per: 20           # 최대 PER
+    max_pbr: 3.0          # 최대 PBR
+    min_roe: 5            # 최소 ROE (%)
+    max_debt_ratio: 200   # 최대 부채비율 (%)
+
+  # 프리셋 전략
+  presets:
+    default: "value"      # 기본 프리셋 전략
+    # 사용 가능: value, growth, momentum, dividend,
+    #           small_cap_value, quality, turnaround,
+    #           oversold_bounce, breakout, income
+
+  # 결과 설정
+  results:
+    max_stocks: 50        # 최대 결과 종목 수
+    sort_by: "market_cap" # 정렬 기준
+    sort_ascending: false # 정렬 방향
+```
+
+### 상세 설명
+
+| 항목 | 타입 | 기본값 | 설명 |
+|------|------|--------|------|
+| `defaults.exclude_administrative` | bool | true | 관리종목 제외 |
+| `defaults.exclude_trading_halt` | bool | true | 거래정지 제외 |
+| `defaults.exclude_etf` | bool | true | ETF 제외 |
+| `defaults.min_market_cap` | int | 50000000000 | 최소 시가총액 (500억) |
+| `defaults.min_volume` | int | 10000 | 최소 거래량 |
+| `price.min_price` | int | 1000 | 최소 주가 |
+| `technical.rsi_oversold` | int | 30 | RSI 과매도 기준 |
+| `technical.rsi_overbought` | int | 70 | RSI 과매수 기준 |
+| `fundamental.max_per` | float | 20 | 최대 PER |
+| `fundamental.max_pbr` | float | 3.0 | 최대 PBR |
+| `fundamental.min_roe` | float | 5 | 최소 ROE (%) |
+| `presets.default` | str | "value" | 기본 프리셋 |
+| `results.max_stocks` | int | 50 | 최대 결과 종목 수 |
+
+### 프리셋 전략 옵션
+
+| 값 | 설명 |
+|------|------|
+| `value` | 가치 투자 (낮은 PER/PBR, 높은 ROE) |
+| `growth` | 성장 투자 (높은 EPS/매출 성장률) |
+| `momentum` | 모멘텀 (이동평균 돌파, RSI) |
+| `dividend` | 배당 투자 (고배당, 재무 안정) |
+| `small_cap_value` | 소형 가치주 |
+| `quality` | 퀄리티 (높은 ROE/ROA) |
+| `turnaround` | 턴어라운드 (저점 매수) |
+| `oversold_bounce` | 과매도 반등 |
+| `breakout` | 돌파 (신고가, 골든크로스) |
+| `income` | 인컴 (고배당 대형주) |
+
+### 사용 예시
+
+```python
+from src.utils.config_loader import get_config
+from src.screening import get_preset_strategy
+
+config = get_config()
+
+# 기본 프리셋 조회
+default_preset = config.get('screening.presets.default', 'value')
+
+# 프리셋으로 스크리너 생성
+screener = get_preset_strategy(default_preset)
+
+# 설정값으로 조건 생성
+max_per = config.get('screening.fundamental.max_per', 20)
+min_roe = config.get('screening.fundamental.min_roe', 5)
+```
+
+---
+
 ## 알림 설정
 
 ### notification
@@ -584,3 +693,4 @@ notification:
 ## 다음 단계
 
 - [09. 데이터베이스](./09-database.md) - 데이터베이스 스키마 및 사용법
+- [10. 종목 스크리닝](./10-stock-screener.md) - 조건 기반 종목 필터링

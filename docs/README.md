@@ -15,6 +15,7 @@
 | [07. 백테스팅](./07-backtesting.md) | 전략 시뮬레이션 및 성과 분석 |
 | [08. 설정 파일](./08-configuration.md) | config.yaml 상세 설정 항목 |
 | [09. 데이터베이스](./09-database.md) | 데이터베이스 스키마 및 사용법 |
+| [10. 종목 스크리닝](./10-stock-screener.md) | 조건 기반 종목 필터링 및 프리셋 전략 |
 
 ## 시스템 아키텍처
 
@@ -34,6 +35,10 @@ Quantitative_Investing/
 │   ├── strategies/          # 투자 전략 모듈
 │   │   ├── base_strategy.py        # 기본 전략 클래스
 │   │   └── quant_strategies.py     # 퀀트 전략들
+│   ├── screening/           # 종목 스크리닝 모듈
+│   │   ├── screener.py             # 스크리너 클래스
+│   │   ├── conditions/             # 조건 클래스들
+│   │   └── presets/                # 프리셋 전략
 │   ├── portfolio/           # 포트폴리오 모듈
 │   │   └── portfolio_optimizer.py  # 최적화
 │   ├── backtesting/         # 백테스팅 모듈
@@ -81,6 +86,12 @@ Quantitative_Investing/
 - 거래 비용 및 슬리피지 반영
 - 다양한 성과 지표 계산
 
+### 6. 종목 스크리닝
+- **조건 기반 필터링**: 가격, 기술적 지표, 펀더멘털, 시장 분류
+- **조건 조합**: AND, OR, NOT 연산자로 복합 조건 생성
+- **빌더 패턴**: 체이닝 방식의 직관적인 API
+- **프리셋 전략**: 가치, 성장, 모멘텀, 배당 등 10가지 프리셋
+
 ## 빠른 시작
 
 ```python
@@ -100,6 +111,27 @@ results, summary = run_backtest(strategy, data, initial_capital=100000000)
 
 # 4. 결과 확인
 print(summary)
+```
+
+### 종목 스크리닝 예제
+
+```python
+from src.screening import ScreenerBuilder, get_preset_strategy
+
+# 빌더 패턴으로 스크리너 구성
+results = (ScreenerBuilder("가치주 스크리너")
+    .price_above(5000)
+    .per_below(10)
+    .pbr_below(1.0)
+    .roe_above(10)
+    .exclude_administrative()
+    .sort_by('per', ascending=True)
+    .limit(20)
+    .screen(data))
+
+# 또는 프리셋 전략 사용
+screener = get_preset_strategy('value', max_per=8, max_pbr=0.8)
+results = screener.screen(data)
 ```
 
 ## 라이선스
