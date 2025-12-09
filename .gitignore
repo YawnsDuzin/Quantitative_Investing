@@ -43,6 +43,9 @@ ENV/
 config/.env
 *.env
 
+# Config files with sensitive data
+config/config.yaml
+
 # Data Files
 data/raw/*
 data/processed/*
