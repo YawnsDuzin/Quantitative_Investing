@@ -47,6 +47,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('screening') %}active{% endif %}"
+                           href="{{ url_for('screening.index') }}">
+                            <i class="bi bi-funnel"></i> 스크리닝
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('data') %}active{% endif %}"
                            href="{{ url_for('data.index') }}">
                             <i class="bi bi-database"></i> 데이터

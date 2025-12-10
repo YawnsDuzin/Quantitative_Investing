@@ -68,12 +68,14 @@ def create_app(config_name=None):
     from web.routes.data import data_bp
     from web.routes.settings import settings_bp
     from web.routes.api import api_bp
+    from web.routes.screening import screening_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(strategies_bp, url_prefix='/strategies')
     app.register_blueprint(backtest_bp, url_prefix='/backtest')
+    app.register_blueprint(screening_bp, url_prefix='/screening')
     app.register_blueprint(data_bp, url_prefix='/data')
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(api_bp, url_prefix='/api')

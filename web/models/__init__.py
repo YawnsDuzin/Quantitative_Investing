@@ -6,6 +6,7 @@ from web.models.user import User
 from web.models.backtest import BacktestResult, BacktestTrade
 from web.models.portfolio import Portfolio, PortfolioHolding
 from web.models.strategy import SavedStrategy
+from web.models.screening import ScreeningResult, SavedScreener
 
 __all__ = [
     'User',
@@ -13,5 +14,7 @@ __all__ = [
     'BacktestTrade',
     'Portfolio',
     'PortfolioHolding',
-    'SavedStrategy'
+    'SavedStrategy',
+    'ScreeningResult',
+    'SavedScreener'
 ]

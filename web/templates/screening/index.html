@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}종목 스크리닝 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-funnel"></i> 종목 스크리닝</h2>
+        <div>
+            <a href="{{ url_for('screening.history') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history"></i> 스크리닝 이력
+            </a>
+        </div>
+    </div>
+
+    <!-- 스크리닝 유형 선택 카드 -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-bookmark-star display-4 text-primary"></i>
+                    </div>
+                    <h4 class="card-title">프리셋 스크리닝</h4>
+                    <p class="card-text text-muted">
+                        미리 정의된 투자 전략을 선택하여<br>
+                        빠르게 종목을 스크리닝합니다.
+                    </p>
+                    <ul class="list-unstyled text-start mb-4">
+                        <li><i class="bi bi-check-circle text-success"></i> 가치주, 성장주, 배당주</li>
+                        <li><i class="bi bi-check-circle text-success"></i> 모멘텀, GARP 전략</li>
+                        <li><i class="bi bi-check-circle text-success"></i> 파라미터 커스터마이징</li>
+                    </ul>
+                    <a href="{{ url_for('screening.preset') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-play-fill"></i> 프리셋 스크리닝
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 hover-shadow">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i class="bi bi-sliders display-4 text-success"></i>
+                    </div>
+                    <h4 class="card-title">커스텀 스크리닝</h4>
+                    <p class="card-text text-muted">
+                        개별 조건을 직접 조합하여<br>
+                        나만의 스크리닝 전략을 만듭니다.
+                    </p>
+                    <ul class="list-unstyled text-start mb-4">
+                        <li><i class="bi bi-check-circle text-success"></i> 60+ 개별 조건</li>
+                        <li><i class="bi bi-check-circle text-success"></i> AND/OR 조건 조합</li>
+                        <li><i class="bi bi-check-circle text-success"></i> 스크리너 저장 기능</li>
+                    </ul>
+                    <a href="{{ url_for('screening.custom') }}" class="btn btn-success btn-lg">
+                        <i class="bi bi-gear-fill"></i> 커스텀 스크리닝
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최근 스크리닝 결과 -->
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-history"></i> 최근 스크리닝 결과</span>
+                    <a href="{{ url_for('screening.history') }}" class="btn btn-sm btn-outline-primary">전체보기</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_results %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>스크리닝명</th>
+                                    <th>유형</th>
+                                    <th>시장</th>
+                                    <th>결과</th>
+                                    <th>상태</th>
+                                    <th>일시</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in recent_results %}
+                                <tr>
+                                    <td>{{ result.name }}</td>
+                                    <td>
+                                        {% if result.screening_type == 'preset' %}
+                                        <span class="badge bg-primary">프리셋</span>
+                                        {% else %}
+                                        <span class="badge bg-success">커스텀</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ result.market }}</td>
+                                    <td>{{ result.filtered_count or '-' }} / {{ result.total_stocks or '-' }}</td>
+                                    <td>
+                                        {% if result.status == 'completed' %}
+                                        <span class="badge bg-success">완료</span>
+                                        {% elif result.status == 'running' %}
+                                        <span class="badge bg-warning">실행중</span>
+                                        {% elif result.status == 'failed' %}
+                                        <span class="badge bg-danger">실패</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">대기</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ result.created_at.strftime('%m/%d %H:%M') }}</td>
+                                    <td>
+                                        {% if result.status == 'completed' %}
+                                        <a href="{{ url_for('screening.results', result_id=result.id) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-2">아직 스크리닝 기록이 없습니다.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 저장된 스크리너 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-bookmark"></i> 저장된 스크리너
+                </div>
+                <div class="card-body">
+                    {% if saved_screeners %}
+                    <ul class="list-group list-group-flush">
+                        {% for screener in saved_screeners[:5] %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ screener.name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ screener.market }} | {{ screener.screening_type }}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="runSavedScreener({{ screener.id }})">
+                                <i class="bi bi-play"></i>
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-bookmark display-4"></i>
+                        <p class="mt-2">저장된 스크리너가 없습니다.</p>
+                        <small>커스텀 스크리닝에서 자주 사용하는<br>조건을 저장해보세요.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 프리셋 빠른 실행 -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-lightning"></i> 빠른 스크리닝
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% for key, preset in presets.items() %}
+                        {% if loop.index <= 5 %}
+                        <button class="btn btn-outline-secondary text-start" onclick="quickRun('{{ key }}')">
+                            <i class="bi bi-play-circle"></i> {{ preset.display_name }}
+                        </button>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function quickRun(presetName) {
+    window.location.href = "{{ url_for('screening.preset') }}?preset=" + presetName;
+}
+
+function runSavedScreener(screenerId) {
+    // TODO: Implement run saved screener
+    alert('저장된 스크리너 실행: ' + screenerId);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block title %}커스텀 스크리닝 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('screening.index') }}">스크리닝</a></li>
+            <li class="breadcrumb-item active">커스텀 스크리닝</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-sliders"></i> 커스텀 스크리닝</h2>
+    </div>
+
+    <div class="row">
+        <!-- 조건 선택 패널 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card sticky-top" style="top: 80px; max-height: calc(100vh - 100px); overflow-y: auto;">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-puzzle"></i> 조건 빌더
+                </div>
+                <div class="card-body">
+                    <!-- 시장 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">시장</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="market" id="market-kr" value="KR" checked>
+                            <label class="btn btn-outline-success" for="market-kr">
+                                <i class="bi bi-flag"></i> 한국
+                            </label>
+                            <input type="radio" class="btn-check" name="market" id="market-us" value="US">
+                            <label class="btn btn-outline-success" for="market-us">
+                                <i class="bi bi-globe"></i> 미국
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 카테고리 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">조건 카테고리</label>
+                        <select class="form-select" id="category-select">
+                            <option value="">-- 카테고리 선택 --</option>
+                            {% for key, cat in categories.items() %}
+                            <option value="{{ key }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 조건 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">조건</label>
+                        <select class="form-select" id="condition-select" disabled>
+                            <option value="">-- 조건 선택 --</option>
+                        </select>
+                    </div>
+
+                    <!-- 파라미터 입력 -->
+                    <div id="condition-params" class="d-none">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">파라미터</label>
+                            <div id="condition-params-form"></div>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm w-100" id="btn-add-condition">
+                            <i class="bi bi-plus-lg"></i> 조건 추가
+                        </button>
+                    </div>
+
+                    <hr>
+
+                    <!-- 조건 결합 방식 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">조건 결합</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="combine" id="combine-and" value="AND" checked>
+                            <label class="btn btn-outline-secondary" for="combine-and">
+                                AND (모두)
+                            </label>
+                            <input type="radio" class="btn-check" name="combine" id="combine-or" value="OR">
+                            <label class="btn btn-outline-secondary" for="combine-or">
+                                OR (하나라도)
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- 실행 버튼 -->
+                    <button type="button" class="btn btn-success btn-lg w-100" id="btn-run" disabled>
+                        <i class="bi bi-play-fill"></i> 스크리닝 실행
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메인 패널 -->
+        <div class="col-lg-8">
+            <!-- 선택된 조건들 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-check"></i> 선택된 조건</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-clear-conditions">
+                        <i class="bi bi-trash"></i> 모두 삭제
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="selected-conditions">
+                        <p class="text-muted text-center mb-0">
+                            <i class="bi bi-info-circle"></i> 왼쪽 패널에서 조건을 추가하세요.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 진행 상황 -->
+            <div id="progress-panel" class="card mb-4 d-none">
+                <div class="card-header">
+                    <i class="bi bi-hourglass-split"></i> 스크리닝 진행 중
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                             id="progress-bar" role="progressbar" style="width: 0%">
+                            0%
+                        </div>
+                    </div>
+                    <p id="progress-message" class="mb-0 text-muted text-center"></p>
+                </div>
+            </div>
+
+            <!-- 결과 테이블 -->
+            <div id="results-panel" class="card d-none">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-table"></i> 스크리닝 결과</span>
+                    <span class="badge bg-success" id="results-count">0개</span>
+                </div>
+                <div class="card-body">
+                    <div id="results-summary" class="row text-center mb-4">
+                        <div class="col-4">
+                            <h4 id="total-stocks" class="text-muted">-</h4>
+                            <small class="text-muted">전체 종목</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="filtered-stocks" class="text-success">-</h4>
+                            <small class="text-muted">필터링 결과</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="filter-rate" class="text-primary">-</h4>
+                            <small class="text-muted">필터율</small>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>종목코드</th>
+                                    <th>종목명</th>
+                                    <th class="text-end">현재가</th>
+                                    <th class="text-end">등락률</th>
+                                    <th class="text-end">시가총액</th>
+                                    <th class="text-end">PER</th>
+                                    <th class="text-end">PBR</th>
+                                    <th class="text-end">ROE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.condition-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    position: relative;
+}
+.condition-card.price { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.condition-card.technical { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.condition-card.fundamental { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.condition-card.market { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+.condition-card .btn-remove {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+}
+.condition-card .btn-remove:hover {
+    background: rgba(255,255,255,0.4);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CATEGORIES = {{ categories | tojson }};
+let selectedConditions = [];
+let currentResultId = null;
+let pollInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 카테고리 선택
+    document.getElementById('category-select').addEventListener('change', function() {
+        const category = this.value;
+        const conditionSelect = document.getElementById('condition-select');
+        conditionSelect.innerHTML = '<option value="">-- 조건 선택 --</option>';
+
+        if (category && CATEGORIES[category]) {
+            CATEGORIES[category].conditions.forEach(cond => {
+                const option = document.createElement('option');
+                option.value = cond.class_name;
+                option.textContent = cond.display_name;
+                conditionSelect.appendChild(option);
+            });
+            conditionSelect.disabled = false;
+        } else {
+            conditionSelect.disabled = true;
+        }
+        document.getElementById('condition-params').classList.add('d-none');
+    });
+
+    // 조건 선택
+    document.getElementById('condition-select').addEventListener('change', function() {
+        const category = document.getElementById('category-select').value;
+        const conditionName = this.value;
+
+        if (conditionName && CATEGORIES[category]) {
+            const condition = CATEGORIES[category].conditions.find(c => c.class_name === conditionName);
+            if (condition) {
+                showConditionParams(condition);
+            }
+        } else {
+            document.getElementById('condition-params').classList.add('d-none');
+        }
+    });
+
+    // 조건 추가
+    document.getElementById('btn-add-condition').addEventListener('click', addCondition);
+
+    // 조건 삭제
+    document.getElementById('btn-clear-conditions').addEventListener('click', clearConditions);
+
+    // 실행
+    document.getElementById('btn-run').addEventListener('click', runScreening);
+});
+
+function showConditionParams(condition) {
+    const form = document.getElementById('condition-params-form');
+    form.innerHTML = '';
+
+    if (condition.params.length === 0) {
+        form.innerHTML = '<p class="text-muted small">파라미터가 필요없습니다.</p>';
+    } else {
+        condition.params.forEach(param => {
+            const div = document.createElement('div');
+            div.className = 'mb-2';
+            div.innerHTML = `
+                <label class="form-label small">${param.name}</label>
+                <input type="number" class="form-control form-control-sm"
+                    id="cond-param-${param.name}"
+                    data-param="${param.name}"
+                    value="${param.default || ''}"
+                    step="${param.type === 'float' ? '0.1' : '1'}">
+            `;
+            form.appendChild(div);
+        });
+    }
+
+    document.getElementById('condition-params').classList.remove('d-none');
+}
+
+function addCondition() {
+    const category = document.getElementById('category-select').value;
+    const conditionName = document.getElementById('condition-select').value;
+
+    if (!category || !conditionName) return;
+
+    const condition = CATEGORIES[category].conditions.find(c => c.class_name === conditionName);
+    if (!condition) return;
+
+    const params = {};
+    document.querySelectorAll('#condition-params-form input').forEach(el => {
+        params[el.dataset.param] = el.type === 'number' ? parseFloat(el.value) : el.value;
+    });
+
+    selectedConditions.push({
+        category: category,
+        class_name: conditionName,
+        display_name: condition.display_name,
+        params: params
+    });
+
+    renderSelectedConditions();
+    updateRunButton();
+
+    // 초기화
+    document.getElementById('category-select').value = '';
+    document.getElementById('condition-select').innerHTML = '<option value="">-- 조건 선택 --</option>';
+    document.getElementById('condition-select').disabled = true;
+    document.getElementById('condition-params').classList.add('d-none');
+}
+
+function renderSelectedConditions() {
+    const container = document.getElementById('selected-conditions');
+
+    if (selectedConditions.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center mb-0"><i class="bi bi-info-circle"></i> 왼쪽 패널에서 조건을 추가하세요.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    selectedConditions.forEach((cond, index) => {
+        const paramsStr = Object.entries(cond.params).map(([k, v]) => `${k}: ${v}`).join(', ');
+        const card = document.createElement('div');
+        card.className = `condition-card ${cond.category}`;
+        card.innerHTML = `
+            <button class="btn-remove" onclick="removeCondition(${index})">
+                <i class="bi bi-x"></i>
+            </button>
+            <div><strong>${cond.display_name}</strong></div>
+            <div class="small opacity-75">${paramsStr || '파라미터 없음'}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function removeCondition(index) {
+    selectedConditions.splice(index, 1);
+    renderSelectedConditions();
+    updateRunButton();
+}
+
+function clearConditions() {
+    selectedConditions = [];
+    renderSelectedConditions();
+    updateRunButton();
+}
+
+function updateRunButton() {
+    document.getElementById('btn-run').disabled = selectedConditions.length === 0;
+}
+
+async function runScreening() {
+    const market = document.querySelector('input[name="market"]:checked').value;
+    const combineMode = document.querySelector('input[name="combine"]:checked').value;
+
+    document.getElementById('progress-panel').classList.remove('d-none');
+    document.getElementById('results-panel').classList.add('d-none');
+    document.getElementById('btn-run').disabled = true;
+    updateProgress(0, '스크리닝 시작 중...');
+
+    try {
+        const response = await fetch('/screening/api/run/custom', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                conditions: selectedConditions.map(c => ({ class_name: c.class_name, params: c.params })),
+                combine_mode: combineMode,
+                market: market
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            currentResultId = data.result_id;
+            pollProgress();
+        } else {
+            showError(data.error || '스크리닝 시작에 실패했습니다.');
+        }
+    } catch (error) {
+        showError('네트워크 오류: ' + error.message);
+    }
+}
+
+function pollProgress() {
+    pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/screening/api/status/${currentResultId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                updateProgress(data.progress, data.current_step);
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    loadResults();
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showError(data.error_message || '스크리닝에 실패했습니다.');
+                }
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+        }
+    }, 500);
+}
+
+function updateProgress(percentage, message) {
+    const bar = document.getElementById('progress-bar');
+    bar.style.width = percentage + '%';
+    bar.textContent = percentage + '%';
+    document.getElementById('progress-message').textContent = message || '';
+}
+
+async function loadResults() {
+    try {
+        const response = await fetch(`/screening/api/results/${currentResultId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            showResults(data.result);
+        } else {
+            showError('결과를 불러오는데 실패했습니다.');
+        }
+    } catch (error) {
+        showError('네트워크 오류: ' + error.message);
+    }
+}
+
+function showResults(result) {
+    document.getElementById('progress-panel').classList.add('d-none');
+    document.getElementById('results-panel').classList.remove('d-none');
+    document.getElementById('btn-run').disabled = false;
+
+    const totalStocks = result.total_stocks || 0;
+    const filteredCount = result.filtered_count || 0;
+    const filterRate = totalStocks > 0 ? ((filteredCount / totalStocks) * 100).toFixed(1) : 0;
+
+    document.getElementById('results-count').textContent = filteredCount + '개';
+    document.getElementById('total-stocks').textContent = totalStocks.toLocaleString();
+    document.getElementById('filtered-stocks').textContent = filteredCount.toLocaleString();
+    document.getElementById('filter-rate').textContent = filterRate + '%';
+
+    const tbody = document.getElementById('results-body');
+    tbody.innerHTML = '';
+
+    const stocks = result.results || [];
+    if (stocks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">조건에 맞는 종목이 없습니다.</td></tr>';
+        return;
+    }
+
+    stocks.forEach((stock, index) => {
+        const changeClass = stock.change_rate > 0 ? 'text-danger' : (stock.change_rate < 0 ? 'text-primary' : '');
+        const changeIcon = stock.change_rate > 0 ? '▲' : (stock.change_rate < 0 ? '▼' : '-');
+        const marketCap = stock.market_cap ? (stock.market_cap / 100000000).toFixed(0) + '억' : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${stock.code}</code></td>
+            <td><strong>${stock.name}</strong></td>
+            <td class="text-end">${stock.price ? stock.price.toLocaleString() : '-'}</td>
+            <td class="text-end ${changeClass}">${changeIcon} ${Math.abs(stock.change_rate || 0).toFixed(2)}%</td>
+            <td class="text-end">${marketCap}</td>
+            <td class="text-end">${stock.per ? stock.per.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.pbr ? stock.pbr.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.roe ? stock.roe.toFixed(2) + '%' : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function showError(message) {
+    document.getElementById('progress-panel').classList.add('d-none');
+    document.getElementById('btn-run').disabled = false;
+    alert('오류: ' + message);
+}
+</script>
+{% endblock %}
