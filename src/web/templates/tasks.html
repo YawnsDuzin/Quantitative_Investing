@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}작업 관리{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-list-task"></i> 작업 관리</h2>
+        <p class="text-muted">실행 중인 작업과 완료된 작업을 확인하고 관리합니다.</p>
+    </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-outline-primary" id="btn-refresh">
+            <i class="bi bi-arrow-clockwise"></i> 새로고침
+        </button>
+    </div>
+</div>
+
+<!-- 통계 카드 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 id="stat-total">0</h3>
+                <small>전체 작업</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h3 id="stat-running">0</h3>
+                <small>실행 중</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 id="stat-completed">0</h3>
+                <small>완료</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <h3 id="stat-failed">0</h3>
+                <small>실패</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 작업 목록 -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-all" type="button">
+                    전체
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-running" type="button">
+                    <i class="bi bi-play-circle text-warning"></i> 실행 중
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-completed" type="button">
+                    <i class="bi bi-check-circle text-success"></i> 완료
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-failed" type="button">
+                    <i class="bi bi-x-circle text-danger"></i> 실패
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="tab-all">
+                <div id="tasks-all" class="task-list">
+                    <p class="text-muted text-center">작업 목록을 불러오는 중...</p>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="tab-running">
+                <div id="tasks-running" class="task-list">
+                </div>
+            </div>
+            <div class="tab-pane fade" id="tab-completed">
+                <div id="tasks-completed" class="task-list">
+                </div>
+            </div>
+            <div class="tab-pane fade" id="tab-failed">
+                <div id="tasks-failed" class="task-list">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 작업 상세 모달 -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">작업 상세 정보</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>작업 ID</strong></div>
+                    <div class="col-sm-9"><code id="detail-id"></code></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>작업명</strong></div>
+                    <div class="col-sm-9" id="detail-name"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>상태</strong></div>
+                    <div class="col-sm-9" id="detail-status"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>시작 시간</strong></div>
+                    <div class="col-sm-9" id="detail-started"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>완료 시간</strong></div>
+                    <div class="col-sm-9" id="detail-completed"></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3"><strong>진행률</strong></div>
+                    <div class="col-sm-9">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar" id="detail-progress" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <strong>로그</strong>
+                        <div class="bg-dark text-light p-3 rounded mt-2" style="max-height: 300px; overflow-y: auto;">
+                            <pre id="detail-logs" class="mb-0 small"></pre>
+                        </div>
+                    </div>
+                </div>
+                <div id="detail-error-section" class="row mb-3 d-none">
+                    <div class="col-12">
+                        <strong class="text-danger">오류 메시지</strong>
+                        <div class="alert alert-danger mt-2" id="detail-error"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-danger d-none" id="btn-cancel-task">
+                    <i class="bi bi-x-lg"></i> 작업 취소
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class TasksManager {
+    constructor() {
+        this.tasks = [];
+        this.refreshInterval = null;
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadTasks();
+        // 5초마다 자동 새로고침
+        this.refreshInterval = setInterval(() => this.loadTasks(), 5000);
+    }
+
+    bindEvents() {
+        document.getElementById('btn-refresh').addEventListener('click', () => this.loadTasks());
+        document.getElementById('btn-cancel-task').addEventListener('click', () => this.cancelCurrentTask());
+    }
+
+    async loadTasks() {
+        try {
+            const response = await fetch('/api/tasks/');
+            const data = await response.json();
+            this.tasks = data.tasks || [];
+            this.renderTasks();
+            this.updateStats();
+        } catch (error) {
+            console.error('Failed to load tasks:', error);
+        }
+    }
+
+    updateStats() {
+        const stats = {
+            total: this.tasks.length,
+            running: this.tasks.filter(t => t.status === 'running' || t.status === 'pending').length,
+            completed: this.tasks.filter(t => t.status === 'completed').length,
+            failed: this.tasks.filter(t => t.status === 'failed' || t.status === 'cancelled').length
+        };
+
+        document.getElementById('stat-total').textContent = stats.total;
+        document.getElementById('stat-running').textContent = stats.running;
+        document.getElementById('stat-completed').textContent = stats.completed;
+        document.getElementById('stat-failed').textContent = stats.failed;
+    }
+
+    renderTasks() {
+        const containers = {
+            all: document.getElementById('tasks-all'),
+            running: document.getElementById('tasks-running'),
+            completed: document.getElementById('tasks-completed'),
+            failed: document.getElementById('tasks-failed')
+        };
+
+        // 각 컨테이너 초기화
+        Object.values(containers).forEach(c => c.innerHTML = '');
+
+        if (this.tasks.length === 0) {
+            containers.all.innerHTML = '<p class="text-muted text-center">등록된 작업이 없습니다.</p>';
+            return;
+        }
+
+        // 최신순 정렬
+        const sortedTasks = [...this.tasks].sort((a, b) =>
+            new Date(b.created_at) - new Date(a.created_at)
+        );
+
+        sortedTasks.forEach(task => {
+            const card = this.createTaskCard(task);
+            containers.all.appendChild(card.cloneNode(true));
+
+            if (task.status === 'running' || task.status === 'pending') {
+                containers.running.appendChild(card.cloneNode(true));
+            } else if (task.status === 'completed') {
+                containers.completed.appendChild(card.cloneNode(true));
+            } else {
+                containers.failed.appendChild(card.cloneNode(true));
+            }
+        });
+
+        // 빈 탭 메시지
+        ['running', 'completed', 'failed'].forEach(key => {
+            if (containers[key].children.length === 0) {
+                containers[key].innerHTML = '<p class="text-muted text-center">해당 상태의 작업이 없습니다.</p>';
+            }
+        });
+
+        // 클릭 이벤트 바인딩
+        document.querySelectorAll('.task-card').forEach(card => {
+            card.addEventListener('click', () => this.showTaskDetail(card.dataset.taskId));
+        });
+    }
+
+    createTaskCard(task) {
+        const statusConfig = {
+            pending: { badge: 'bg-secondary', icon: 'bi-clock', text: '대기중' },
+            running: { badge: 'bg-warning text-dark', icon: 'bi-play-circle', text: '실행중' },
+            completed: { badge: 'bg-success', icon: 'bi-check-circle', text: '완료' },
+            failed: { badge: 'bg-danger', icon: 'bi-x-circle', text: '실패' },
+            cancelled: { badge: 'bg-secondary', icon: 'bi-slash-circle', text: '취소됨' }
+        };
+
+        const config = statusConfig[task.status] || statusConfig.pending;
+        const progress = task.progress?.percentage || 0;
+
+        const div = document.createElement('div');
+        div.className = 'card task-card mb-2';
+        div.style.cursor = 'pointer';
+        div.dataset.taskId = task.id;
+        div.innerHTML = `
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge ${config.badge} me-2">
+                            <i class="bi ${config.icon}"></i> ${config.text}
+                        </span>
+                        <strong>${task.name}</strong>
+                        <small class="text-muted ms-2">${task.id.substring(0, 8)}...</small>
+                    </div>
+                    <small class="text-muted">${this.formatTime(task.created_at)}</small>
+                </div>
+                ${task.status === 'running' ? `
+                <div class="progress mt-2" style="height: 5px;">
+                    <div class="progress-bar bg-warning" style="width: ${progress}%"></div>
+                </div>
+                <small class="text-muted">${task.progress?.message || ''}</small>
+                ` : ''}
+            </div>
+        `;
+        return div;
+    }
+
+    async showTaskDetail(taskId) {
+        try {
+            const response = await fetch(`/api/tasks/${taskId}`);
+            const data = await response.json();
+            const task = data.task;
+
+            this.currentTaskId = taskId;
+
+            document.getElementById('detail-id').textContent = task.id;
+            document.getElementById('detail-name').textContent = task.name;
+
+            const statusConfig = {
+                pending: { badge: 'bg-secondary', text: '대기중' },
+                running: { badge: 'bg-warning text-dark', text: '실행중' },
+                completed: { badge: 'bg-success', text: '완료' },
+                failed: { badge: 'bg-danger', text: '실패' },
+                cancelled: { badge: 'bg-secondary', text: '취소됨' }
+            };
+            const config = statusConfig[task.status];
+            document.getElementById('detail-status').innerHTML = `<span class="badge ${config.badge}">${config.text}</span>`;
+
+            document.getElementById('detail-started').textContent = task.started_at ? this.formatTime(task.started_at) : '-';
+            document.getElementById('detail-completed').textContent = task.completed_at ? this.formatTime(task.completed_at) : '-';
+
+            const progress = task.progress?.percentage || 0;
+            const progressBar = document.getElementById('detail-progress');
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = progress + '%';
+            progressBar.className = 'progress-bar';
+            if (task.status === 'completed') progressBar.classList.add('bg-success');
+            else if (task.status === 'failed') progressBar.classList.add('bg-danger');
+            else progressBar.classList.add('bg-warning');
+
+            document.getElementById('detail-logs').textContent = task.logs?.join('\n') || '로그 없음';
+
+            const errorSection = document.getElementById('detail-error-section');
+            if (task.error) {
+                errorSection.classList.remove('d-none');
+                document.getElementById('detail-error').textContent = task.error;
+            } else {
+                errorSection.classList.add('d-none');
+            }
+
+            const cancelBtn = document.getElementById('btn-cancel-task');
+            if (task.status === 'running' || task.status === 'pending') {
+                cancelBtn.classList.remove('d-none');
+            } else {
+                cancelBtn.classList.add('d-none');
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('taskDetailModal'));
+            modal.show();
+        } catch (error) {
+            console.error('Failed to load task detail:', error);
+        }
+    }
+
+    async cancelCurrentTask() {
+        if (!this.currentTaskId) return;
+
+        try {
+            const response = await fetch(`/api/tasks/${this.currentTaskId}/cancel`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                alert('작업이 취소되었습니다.');
+                bootstrap.Modal.getInstance(document.getElementById('taskDetailModal')).hide();
+                this.loadTasks();
+            } else {
+                alert('작업 취소에 실패했습니다: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Failed to cancel task:', error);
+            alert('작업 취소 중 오류가 발생했습니다.');
+        }
+    }
+
+    formatTime(isoString) {
+        if (!isoString) return '-';
+        const date = new Date(isoString);
+        return date.toLocaleString('ko-KR');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const manager = new TasksManager();
+    manager.init();
+});
+</script>
+{% endblock %}

@@ -16,10 +16,9 @@
 | [08. 설정 파일](./08-configuration.md) | config.yaml 상세 설정 항목 |
 | [09. 데이터베이스](./09-database.md) | 데이터베이스 스키마 및 사용법 |
 | [10. 종목 스크리닝](./10-stock-screener.md) | 조건 기반 종목 필터링 및 프리셋 전략 |
-=======
-| [10. 웹 인터페이스](./10-web-interface.md) | Flask 웹 대시보드 사용법 |
-| [11. 라즈베리파이 설치](./11-raspberry-pi-setup.md) | Raspberry Pi 설치 및 운영 가이드 |
-| [12. 윈도우 설치](./12-windows-setup.md) | Windows 설치 및 운영 가이드 |
+| [11. 웹 인터페이스](./11-web-interface.md) | Flask 기반 웹 UI 및 실시간 모니터링 |
+| [12. 라즈베리파이 설치](./12-raspberry-pi-setup.md) | Raspberry Pi 설치 및 운영 가이드 |
+| [13. 윈도우 설치](./13-windows-setup.md) | Windows 설치 및 운영 가이드 |
 
 ## 시스템 아키텍처
 
@@ -49,11 +48,18 @@ Quantitative_Investing/
 │   │   ├── backtester.py           # 백테스팅 엔진
 │   │   ├── performance_metrics.py  # 성과 지표
 │   │   └── visualizer.py           # 시각화
-│   └── utils/               # 유틸리티 모듈
-│       ├── config_loader.py        # 설정 로더
-│       ├── database.py             # DB 관리
-│       ├── logger.py               # 로깅
-│       └── helpers.py              # 헬퍼 함수
+│   ├── utils/               # 유틸리티 모듈
+│   │   ├── config_loader.py        # 설정 로더
+│   │   ├── database.py             # DB 관리
+│   │   ├── logger.py               # 로깅
+│   │   └── helpers.py              # 헬퍼 함수
+│   └── web/                 # 웹 인터페이스 모듈
+│       ├── app.py                  # 엔트리포인트
+│       ├── routes.py               # 페이지 라우트
+│       ├── task_manager.py         # 백그라운드 작업 관리
+│       ├── api/                    # REST API
+│       ├── templates/              # HTML 템플릿
+│       └── static/                 # CSS, JS 파일
 ├── tests/                   # 테스트 코드
 └── notebooks/               # Jupyter 노트북
 ```
@@ -95,6 +101,12 @@ Quantitative_Investing/
 - **조건 조합**: AND, OR, NOT 연산자로 복합 조건 생성
 - **빌더 패턴**: 체이닝 방식의 직관적인 API
 - **프리셋 전략**: 가치, 성장, 모멘텀, 배당 등 10가지 프리셋
+
+### 7. 웹 인터페이스
+- **Flask 기반 UI**: 반응형 웹 인터페이스
+- **비동기 작업**: 백그라운드 스크리닝 실행
+- **실시간 모니터링**: WebSocket 기반 진행 상황 업데이트
+- **작업 관리**: 진행 중인 작업 조회 및 취소
 
 ## 빠른 시작
 

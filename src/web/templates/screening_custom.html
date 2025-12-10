@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}커스텀 스크리닝{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.screening') }}">스크리닝</a></li>
+                <li class="breadcrumb-item active">커스텀 스크리닝</li>
+            </ol>
+        </nav>
+        <h2><i class="bi bi-code-slash"></i> 커스텀 스크리닝</h2>
+        <p class="text-muted">조건들을 직접 조합하여 나만의 스크리닝 전략을 만들어보세요.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 조건 선택 패널 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm sticky-top" style="top: 80px; max-height: calc(100vh - 100px); overflow-y: auto;">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-puzzle"></i> 조건 빌더
+            </div>
+            <div class="card-body">
+                <!-- 시장 선택 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">시장</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="market" id="market-kr" value="KR" checked>
+                        <label class="btn btn-outline-success" for="market-kr">
+                            <i class="bi bi-flag"></i> 한국
+                        </label>
+                        <input type="radio" class="btn-check" name="market" id="market-us" value="US">
+                        <label class="btn btn-outline-success" for="market-us">
+                            <i class="bi bi-globe"></i> 미국
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 카테고리 선택 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">조건 카테고리</label>
+                    <select class="form-select" id="category-select">
+                        <option value="">-- 카테고리 선택 --</option>
+                        <option value="price">가격 조건</option>
+                        <option value="technical">기술적 조건</option>
+                        <option value="fundamental">펀더멘털 조건</option>
+                        <option value="market">시장 조건</option>
+                    </select>
+                </div>
+
+                <!-- 조건 선택 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">조건</label>
+                    <select class="form-select" id="condition-select" disabled>
+                        <option value="">-- 조건 선택 --</option>
+                    </select>
+                </div>
+
+                <!-- 조건 설명 -->
+                <div id="condition-description" class="alert alert-success d-none">
+                    <strong id="condition-name"></strong>
+                    <p id="condition-desc" class="mb-0 small"></p>
+                </div>
+
+                <!-- 파라미터 입력 -->
+                <div id="condition-params" class="d-none">
+                    <hr>
+                    <h6><i class="bi bi-sliders"></i> 파라미터</h6>
+                    <div id="condition-params-form"></div>
+                    <button type="button" class="btn btn-success btn-sm w-100 mt-2" id="btn-add-condition">
+                        <i class="bi bi-plus-lg"></i> 조건 추가
+                    </button>
+                </div>
+
+                <hr>
+
+                <!-- 조건 결합 방식 -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">조건 결합 방식</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="combine" id="combine-and" value="AND" checked>
+                        <label class="btn btn-outline-secondary" for="combine-and">
+                            AND (모두 만족)
+                        </label>
+                        <input type="radio" class="btn-check" name="combine" id="combine-or" value="OR">
+                        <label class="btn btn-outline-secondary" for="combine-or">
+                            OR (하나라도)
+                        </label>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- 실행 버튼 -->
+                <button type="button" class="btn btn-success btn-lg w-100" id="btn-run" disabled>
+                    <i class="bi bi-play-fill"></i> 스크리닝 실행
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 패널 -->
+    <div class="col-lg-8">
+        <!-- 선택된 조건들 -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check"></i> 선택된 조건</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btn-clear-conditions">
+                    <i class="bi bi-trash"></i> 모두 삭제
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="selected-conditions">
+                    <p class="text-muted text-center mb-0">
+                        <i class="bi bi-info-circle"></i> 왼쪽 패널에서 조건을 추가하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 진행 상황 -->
+        <div id="progress-panel" class="card shadow-sm mb-4 d-none">
+            <div class="card-header">
+                <i class="bi bi-hourglass-split"></i> 진행 상황
+                <button type="button" class="btn btn-sm btn-outline-danger float-end" id="btn-cancel">
+                    <i class="bi bi-x-lg"></i> 취소
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                         id="progress-bar" role="progressbar" style="width: 0%">
+                        0%
+                    </div>
+                </div>
+                <p id="progress-message" class="mb-0 text-muted"></p>
+
+                <!-- 로그 -->
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#log-container">
+                        <i class="bi bi-terminal"></i> 로그 보기
+                    </button>
+                    <div class="collapse mt-2" id="log-container">
+                        <div class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+                            <pre id="task-logs" class="mb-0 small"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 결과 테이블 -->
+        <div id="results-panel" class="card shadow-sm d-none">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-table"></i> 스크리닝 결과</span>
+                <span class="badge bg-success" id="results-count">0개</span>
+            </div>
+            <div class="card-body">
+                <div id="results-summary" class="mb-3">
+                    <div class="row text-center">
+                        <div class="col">
+                            <h4 id="total-stocks" class="text-muted">-</h4>
+                            <small class="text-muted">전체 종목</small>
+                        </div>
+                        <div class="col">
+                            <h4 id="filtered-stocks" class="text-success">-</h4>
+                            <small class="text-muted">필터링 결과</small>
+                        </div>
+                        <div class="col">
+                            <h4 id="filter-rate" class="text-primary">-</h4>
+                            <small class="text-muted">필터율</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped" id="results-table">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>종목코드</th>
+                                <th>종목명</th>
+                                <th class="text-end">현재가</th>
+                                <th class="text-end">등락률</th>
+                                <th class="text-end">시가총액</th>
+                                <th class="text-end">PER</th>
+                                <th class="text-end">PBR</th>
+                                <th class="text-end">ROE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/screening.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const screeningManager = new ScreeningManager({
+        type: 'custom',
+        categorySelect: document.getElementById('category-select'),
+        conditionSelect: document.getElementById('condition-select'),
+        conditionDescription: document.getElementById('condition-description'),
+        conditionName: document.getElementById('condition-name'),
+        conditionDesc: document.getElementById('condition-desc'),
+        conditionParams: document.getElementById('condition-params'),
+        conditionParamsForm: document.getElementById('condition-params-form'),
+        btnAddCondition: document.getElementById('btn-add-condition'),
+        selectedConditions: document.getElementById('selected-conditions'),
+        btnClearConditions: document.getElementById('btn-clear-conditions'),
+        btnRun: document.getElementById('btn-run'),
+        btnCancel: document.getElementById('btn-cancel'),
+        progressPanel: document.getElementById('progress-panel'),
+        progressBar: document.getElementById('progress-bar'),
+        progressMessage: document.getElementById('progress-message'),
+        taskLogs: document.getElementById('task-logs'),
+        resultsPanel: document.getElementById('results-panel'),
+        resultsCount: document.getElementById('results-count'),
+        resultsBody: document.getElementById('results-body'),
+        totalStocks: document.getElementById('total-stocks'),
+        filteredStocks: document.getElementById('filtered-stocks'),
+        filterRate: document.getElementById('filter-rate')
+    });
+
+    screeningManager.init();
+});
+</script>
+{% endblock %}
