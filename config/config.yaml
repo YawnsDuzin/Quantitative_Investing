@@ -1,0 +1,149 @@
+# Quantitative Investing Configuration
+
+# Data Collection Settings
+data_collection:
+  # Korean Stock Settings
+  kr_stock:
+    market: ["KOSPI", "KOSDAQ"]
+    min_market_cap: 50000000000  # 500억 원 (50 billion KRW)
+    exclude_sectors: []
+
+  # US Stock Settings
+  us_stock:
+    market: ["NYSE", "NASDAQ"]
+    min_market_cap: 1000000000  # 1 billion USD
+    exclude_sectors: []
+
+  # Data Update Schedule
+  update_schedule:
+    daily: "09:00"  # Daily data update time
+    fundamental: "weekly"  # Fundamental data update frequency
+
+  # Date Range
+  start_date: "2018-01-01"
+  end_date: null  # null means today
+
+# Strategy Parameters
+strategy:
+  # Rebalancing
+  rebalancing_frequency: "monthly"  # daily, weekly, monthly, quarterly
+  rebalancing_day: 1  # Day of month for monthly rebalancing
+
+  # Portfolio Settings
+  max_positions: 20
+  min_positions: 10
+  equal_weight: true
+
+  # Risk Management
+  stop_loss: 0.15  # 15% stop loss
+  take_profit: null  # No take profit
+  max_position_size: 0.1  # Max 10% per position
+
+  # Factor Weights (총합 1.0)
+  factor_weights:
+    momentum: 0.4
+    value: 0.3
+    quality: 0.2
+    size: 0.1
+
+# Backtesting Settings
+backtesting:
+  initial_capital: 100000000  # 1억 원 or 100K USD
+  commission: 0.0015  # 0.15% per trade
+  slippage: 0.001  # 0.1% slippage
+
+  # Performance Metrics
+  benchmark: "SPY"  # S&P 500 for US, KOSPI for KR
+  risk_free_rate: 0.03  # 3% annual risk-free rate
+
+# Database Settings
+database:
+  type: "sqlite"  # sqlite, postgresql, mysql
+  path: "data/database/quant_investing.db"
+  # For PostgreSQL/MySQL
+  # host: "localhost"
+  # port: 5432
+  # name: "quant_investing"
+  # user: "user"
+  # password: "password"
+
+# Logging Settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/quant_investing.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Technical Indicators Settings
+indicators:
+  # Moving Averages
+  sma_periods: [20, 50, 200]
+  ema_periods: [12, 26]
+
+  # Momentum Indicators
+  rsi_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+
+  # Volatility Indicators
+  bollinger_period: 20
+  bollinger_std: 2
+  atr_period: 14
+
+# Stock Screening Settings
+screening:
+  # Default Conditions
+  defaults:
+    exclude_administrative: true  # 관리종목 제외
+    exclude_trading_halt: true    # 거래정지 제외
+    exclude_etf: true             # ETF 제외
+    min_market_cap: 50000000000   # 최소 시가총액 (500억)
+    min_volume: 10000             # 최소 거래량
+
+  # Price Conditions
+  price:
+    min_price: 1000       # 최소 주가
+    max_price: null       # 최대 주가 (null = 무제한)
+
+  # Technical Conditions
+  technical:
+    rsi_oversold: 30      # RSI 과매도 기준
+    rsi_overbought: 70    # RSI 과매수 기준
+    sma_periods: [20, 50, 200]  # 이동평균 기간
+
+  # Fundamental Conditions
+  fundamental:
+    max_per: 20           # 최대 PER
+    max_pbr: 3.0          # 최대 PBR
+    min_roe: 5            # 최소 ROE (%)
+    max_debt_ratio: 200   # 최대 부채비율 (%)
+
+  # Preset Strategies
+  presets:
+    default: "value"      # 기본 프리셋 전략
+    # 사용 가능: value, growth, momentum, dividend,
+    #           small_cap_value, quality, turnaround,
+    #           oversold_bounce, breakout, income
+
+  # Results
+  results:
+    max_stocks: 50        # 최대 결과 종목 수
+    sort_by: "market_cap" # 정렬 기준
+    sort_ascending: false # 정렬 방향
+
+# Notification Settings
+notification:
+  enabled: false
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender: ""
+    receiver: ""
+    password: ""
