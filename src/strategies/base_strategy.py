@@ -204,6 +204,21 @@ class BaseStrategy(ABC):
         Returns:
             List of rebalancing dates
         """
+        # Normalize dates to remove time component
+        if hasattr(start_date, 'normalize'):
+            start_date = start_date.normalize()
+        elif hasattr(start_date, 'date'):
+            start_date = pd.Timestamp(start_date.date())
+        else:
+            start_date = pd.Timestamp(start_date)
+
+        if hasattr(end_date, 'normalize'):
+            end_date = end_date.normalize()
+        elif hasattr(end_date, 'date'):
+            end_date = pd.Timestamp(end_date.date())
+        else:
+            end_date = pd.Timestamp(end_date)
+
         if frequency == 'daily':
             dates = pd.date_range(start_date, end_date, freq='D')
         elif frequency == 'weekly':
@@ -216,7 +231,8 @@ class BaseStrategy(ABC):
             logger.warning(f"Unknown frequency: {frequency}, using monthly")
             dates = pd.date_range(start_date, end_date, freq='MS')
 
-        return dates.tolist()
+        # Normalize all dates to remove time component
+        return [d.normalize() for d in dates]
 
     def filter_universe(self,
                        data: pd.DataFrame,

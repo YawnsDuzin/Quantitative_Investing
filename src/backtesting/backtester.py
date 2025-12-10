@@ -5,7 +5,7 @@ Simulates strategy performance on historical data
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Callable
 from tqdm import tqdm
 
 from ..strategies.base_strategy import BaseStrategy
@@ -51,7 +51,8 @@ class Backtester:
            data: pd.DataFrame,
            start_date: datetime = None,
            end_date: datetime = None,
-           rebalance_frequency: str = 'monthly') -> pd.DataFrame:
+           rebalance_frequency: str = 'monthly',
+           progress_callback: Callable[[int, int, Optional[str]], None] = None) -> pd.DataFrame:
         """
         Run backtest
 
@@ -60,6 +61,8 @@ class Backtester:
             start_date: Backtest start date
             end_date: Backtest end date
             rebalance_frequency: Rebalancing frequency
+            progress_callback: Optional callback function(current_day, total_days, current_date)
+                              for reporting progress
 
         Returns:
             DataFrame with backtest results
@@ -72,15 +75,23 @@ class Backtester:
         if end_date:
             data = data[data['date'] <= end_date]
 
+        # Normalize dates in data to remove time component for consistent comparison
+        if 'date' in data.columns:
+            data = data.copy()
+            data['date'] = pd.to_datetime(data['date']).dt.normalize()
+
         # Get rebalancing dates
         rebalance_dates = self.strategy.get_rebalancing_dates(
             data['date'].min(),
             data['date'].max(),
             frequency=rebalance_frequency
         )
+        # Convert rebalancing dates to set for faster lookup
+        rebalance_dates_set = set(rebalance_dates)
 
         # Get all trading dates
         all_dates = sorted(data['date'].unique())
+        total_days = len(all_dates)
 
         # Initialize portfolio
         current_capital = self.initial_capital
@@ -90,12 +101,23 @@ class Backtester:
         # Track portfolio value over time
         portfolio_history = []
 
-        for date in tqdm(all_dates, desc="Backtesting"):
+        # Progress tracking
+        progress_update_interval = max(1, total_days // 100)  # Update at most 100 times
+
+        for idx, date in enumerate(tqdm(all_dates, desc="Backtesting")):
+            # Report progress via callback
+            if progress_callback and (idx % progress_update_interval == 0 or idx == total_days - 1):
+                date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                try:
+                    progress_callback(idx + 1, total_days, date_str)
+                except Exception as e:
+                    logger.warning(f"Progress callback error: {e}")
+
             # Get data for current date
             current_data = data[data['date'] == date]
 
             # Check if it's a rebalancing date
-            if date in rebalance_dates:
+            if date in rebalance_dates_set:
                 logger.debug(f"Rebalancing on {date}")
 
                 # Generate signals and select stocks

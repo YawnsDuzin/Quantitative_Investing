@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}프로필 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-person-circle display-1 text-muted"></i>
+                    </div>
+                    <h5>{{ current_user.username }}</h5>
+                    <p class="text-muted">{{ current_user.email }}</p>
+                    <small class="text-muted">
+                        가입일: {{ current_user.created_at.strftime('%Y-%m-%d') }}
+                    </small>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('auth.profile') }}" class="list-group-item list-group-item-action active">
+                        <i class="bi bi-person"></i> 프로필 설정
+                    </a>
+                    <a href="{{ url_for('auth.change_password') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-key"></i> 비밀번호 변경
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-person"></i> 프로필 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('auth.profile') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                                {% for error in form.username.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                {% for error in form.email.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6 class="mb-3">환경 설정</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                {{ form.theme.label(class="form-label") }}
+                                {{ form.theme(class="form-select") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.language.label(class="form-label") }}
+                                {{ form.language(class="form-select") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.default_market.label(class="form-label") }}
+                                {{ form.default_market(class="form-select") }}
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

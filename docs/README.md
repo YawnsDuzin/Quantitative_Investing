@@ -16,6 +16,10 @@
 | [08. 설정 파일](./08-configuration.md) | config.yaml 상세 설정 항목 |
 | [09. 데이터베이스](./09-database.md) | 데이터베이스 스키마 및 사용법 |
 | [10. 종목 스크리닝](./10-stock-screener.md) | 조건 기반 종목 필터링 및 프리셋 전략 |
+=======
+| [10. 웹 인터페이스](./10-web-interface.md) | Flask 웹 대시보드 사용법 |
+| [11. 라즈베리파이 설치](./11-raspberry-pi-setup.md) | Raspberry Pi 설치 및 운영 가이드 |
+| [12. 윈도우 설치](./12-windows-setup.md) | Windows 설치 및 운영 가이드 |
 
 ## 시스템 아키텍처
 

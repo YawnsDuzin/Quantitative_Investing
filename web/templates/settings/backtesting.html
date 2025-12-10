@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}백테스팅 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 백테스팅 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.backtesting') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">초기 자본금</label>
+                                <input type="number" class="form-control" name="initial_capital" min="1000000"
+                                       value="{{ config.get('initial_capital', 100000000) }}">
+                                <div class="form-text">백테스트 시뮬레이션의 시작 자본</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">벤치마크</label>
+                                <input type="text" class="form-control" name="benchmark"
+                                       value="{{ config.get('benchmark', 'SPY') }}">
+                                <div class="form-text">비교 대상 지수 (SPY, KOSPI 등)</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">거래 수수료</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="commission" step="0.0001" min="0" max="0.01"
+                                           value="{{ config.get('commission', 0.0015) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">매매당 수수료율</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">슬리피지</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="slippage" step="0.0001" min="0" max="0.01"
+                                           value="{{ config.get('slippage', 0.001) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">체결가 오차율</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">무위험 수익률</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="risk_free_rate" step="0.001" min="0" max="0.1"
+                                           value="{{ config.get('risk_free_rate', 0.03) }}">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">샤프비율 계산용</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

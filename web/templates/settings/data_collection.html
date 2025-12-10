@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}데이터 수집 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-download"></i> 데이터 수집 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.data_collection') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <h6 class="mb-3">한국 주식</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">시장 선택</label>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="kr_markets" value="KOSPI" id="kr_kospi"
+                                           {{ 'checked' if 'KOSPI' in config.get('kr_stock', {}).get('market', []) }}>
+                                    <label class="form-check-label" for="kr_kospi">KOSPI</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="kr_markets" value="KOSDAQ" id="kr_kosdaq"
+                                           {{ 'checked' if 'KOSDAQ' in config.get('kr_stock', {}).get('market', []) }}>
+                                    <label class="form-check-label" for="kr_kosdaq">KOSDAQ</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">최소 시가총액 (원)</label>
+                                <input type="number" class="form-control" name="kr_min_market_cap"
+                                       value="{{ config.get('kr_stock', {}).get('min_market_cap', 50000000000) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">미국 주식</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">시장 선택</label>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="us_markets" value="NYSE" id="us_nyse"
+                                           {{ 'checked' if 'NYSE' in config.get('us_stock', {}).get('market', []) }}>
+                                    <label class="form-check-label" for="us_nyse">NYSE</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" name="us_markets" value="NASDAQ" id="us_nasdaq"
+                                           {{ 'checked' if 'NASDAQ' in config.get('us_stock', {}).get('market', []) }}>
+                                    <label class="form-check-label" for="us_nasdaq">NASDAQ</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">최소 시가총액 (USD)</label>
+                                <input type="number" class="form-control" name="us_min_market_cap"
+                                       value="{{ config.get('us_stock', {}).get('min_market_cap', 1000000000) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">업데이트 스케줄</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">일일 업데이트 시간</label>
+                                <input type="time" class="form-control" name="daily_update_time"
+                                       value="{{ config.get('update_schedule', {}).get('daily', '09:00') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">재무 데이터 업데이트</label>
+                                <select class="form-select" name="fundamental_frequency">
+                                    <option value="daily" {{ 'selected' if config.get('update_schedule', {}).get('fundamental') == 'daily' }}>매일</option>
+                                    <option value="weekly" {{ 'selected' if config.get('update_schedule', {}).get('fundamental') == 'weekly' }}>매주</option>
+                                    <option value="monthly" {{ 'selected' if config.get('update_schedule', {}).get('fundamental') == 'monthly' }}>매월</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">데이터 범위</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">시작 날짜</label>
+                                <input type="date" class="form-control" name="start_date"
+                                       value="{{ config.get('start_date', '2018-01-01') }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">종료 날짜 (빈칸 = 오늘)</label>
+                                <input type="date" class="form-control" name="end_date"
+                                       value="{{ config.get('end_date', '') or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

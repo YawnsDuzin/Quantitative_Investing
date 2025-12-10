@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}대시보드 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-speedometer2"></i> 대시보드</h2>
+        <div>
+            <a href="{{ url_for('backtest.new') }}" class="btn btn-primary">
+                <i class="bi bi-plus"></i> 새 백테스트
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">총 백테스트</h6>
+                            <h3 class="mb-0">{{ total_backtests }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">포트폴리오</h6>
+                            <h3 class="mb-0">{{ portfolios|length }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="bi bi-briefcase"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">총 자산</h6>
+                            <h3 class="mb-0">{{ "{:,.0f}".format(total_portfolio_value) }}</h3>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="text-muted">최고 샤프비율</h6>
+                            <h3 class="mb-0">
+                                {% if best_backtest and best_backtest.sharpe_ratio %}
+                                    {{ "%.2f"|format(best_backtest.sharpe_ratio) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </h3>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="bi bi-trophy"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Backtests -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> 최근 백테스트</h5>
+                    <a href="{{ url_for('backtest.index') }}" class="btn btn-sm btn-outline-primary">전체 보기</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_backtests %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>이름</th>
+                                        <th>전략</th>
+                                        <th>기간</th>
+                                        <th>수익률</th>
+                                        <th>샤프비율</th>
+                                        <th>상태</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for bt in recent_backtests %}
+                                    <tr onclick="window.location='{{ url_for('backtest.view', id=bt.id) }}'" style="cursor: pointer;">
+                                        <td>{{ bt.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ bt.strategy_name }}</span></td>
+                                        <td>{{ bt.start_date.strftime('%Y-%m-%d') }} ~ {{ bt.end_date.strftime('%Y-%m-%d') }}</td>
+                                        <td class="{{ 'text-success' if bt.annual_return and bt.annual_return > 0 else 'text-danger' }}">
+                                            {% if bt.annual_return %}{{ "%.1f"|format(bt.annual_return * 100) }}%{% else %}-{% endif %}
+                                        </td>
+                                        <td>{% if bt.sharpe_ratio %}{{ "%.2f"|format(bt.sharpe_ratio) }}{% else %}-{% endif %}</td>
+                                        <td>
+                                            {% if bt.status == 'completed' %}
+                                                <span class="badge bg-success">완료</span>
+                                            {% elif bt.status == 'running' %}
+                                                <span class="badge bg-warning">실행중</span>
+                                            {% elif bt.status == 'failed' %}
+                                                <span class="badge bg-danger">실패</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">대기</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-4 text-muted"></i>
+                            <p class="text-muted mt-3">아직 백테스트가 없습니다.</p>
+                            <a href="{{ url_for('backtest.new') }}" class="btn btn-primary">
+                                <i class="bi bi-plus"></i> 첫 백테스트 만들기
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Portfolios -->
+        <div class="col-lg-4 mb-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> 빠른 실행</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('backtest.new') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-clock-history"></i> 새 백테스트
+                        </a>
+                        <a href="{{ url_for('strategies.create') }}" class="btn btn-outline-success">
+                            <i class="bi bi-lightbulb"></i> 전략 만들기
+                        </a>
+                        <a href="{{ url_for('data.index') }}" class="btn btn-outline-info">
+                            <i class="bi bi-download"></i> 데이터 수집
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-briefcase"></i> 내 포트폴리오</h5>
+                </div>
+                <div class="card-body">
+                    {% if portfolios %}
+                        <ul class="list-group list-group-flush">
+                            {% for p in portfolios[:5] %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ p.name }}</strong>
+                                    <small class="d-block text-muted">{{ p.strategy_name or '수동 관리' }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">
+                                    {{ "{:,.0f}".format(p.current_value or p.initial_capital) }}
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">포트폴리오가 없습니다.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

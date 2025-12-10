@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }} - 퀀트 투자 시스템{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="row align-items-center py-5">
+        <div class="col-lg-6">
+            <h1 class="display-4 fw-bold mb-4">
+                스마트한 투자의 시작<br>
+                <span class="text-primary">퀀트 투자 시스템</span>
+            </h1>
+            <p class="lead mb-4">
+                데이터 기반의 체계적인 투자 전략을 구축하고,
+                백테스트를 통해 검증된 포트폴리오를 운영하세요.
+            </p>
+            <div class="d-flex gap-3">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-rocket-takeoff"></i> 시작하기
+                </a>
+                <a href="{{ url_for('main.features') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-info-circle"></i> 자세히 보기
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-6 text-center">
+            <div class="hero-chart p-4">
+                <i class="bi bi-graph-up-arrow display-1 text-primary"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center mb-5">
+            <h2 class="fw-bold">주요 기능</h2>
+            <p class="text-muted">체계적인 퀀트 투자를 위한 모든 도구</p>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-lightbulb display-4 text-warning"></i>
+                    </div>
+                    <h5 class="card-title">다양한 전략</h5>
+                    <p class="card-text">
+                        모멘텀, 가치, 퀄리티, 멀티팩터 등
+                        검증된 퀀트 전략을 활용하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-clock-history display-4 text-info"></i>
+                    </div>
+                    <h5 class="card-title">백테스팅</h5>
+                    <p class="card-text">
+                        과거 데이터를 활용한 전략 검증으로
+                        실전 투자 전 성과를 확인하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-pie-chart display-4 text-success"></i>
+                    </div>
+                    <h5 class="card-title">포트폴리오 최적화</h5>
+                    <p class="card-text">
+                        평균-분산 최적화를 통해
+                        최적의 자산 배분을 찾아보세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-globe display-4 text-primary"></i>
+                    </div>
+                    <h5 class="card-title">한국/미국 시장</h5>
+                    <p class="card-text">
+                        KOSPI, KOSDAQ, NYSE, NASDAQ
+                        주요 시장을 모두 지원합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-bar-chart display-4 text-danger"></i>
+                    </div>
+                    <h5 class="card-title">기술적 분석</h5>
+                    <p class="card-text">
+                        SMA, RSI, MACD, 볼린저밴드 등
+                        다양한 기술적 지표를 활용하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 feature-card">
+                <div class="card-body text-center">
+                    <div class="feature-icon mb-3">
+                        <i class="bi bi-shield-check display-4 text-secondary"></i>
+                    </div>
+                    <h5 class="card-title">리스크 관리</h5>
+                    <p class="card-text">
+                        손절, 포지션 사이징, 분산투자로
+                        안정적인 포트폴리오를 구축하세요.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="row py-5">
+        <div class="col-12 text-center">
+            <div class="cta-section p-5 rounded-3">
+                <h3 class="mb-3">지금 바로 시작하세요</h3>
+                <p class="mb-4">무료로 계정을 만들고 퀀트 투자의 세계를 경험해보세요.</p>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                    <i class="bi bi-person-plus"></i> 무료 가입
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

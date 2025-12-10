@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}지표 설정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="list-group">
+                <a href="{{ url_for('settings.data_collection') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-download"></i> 데이터 수집
+                </a>
+                <a href="{{ url_for('settings.strategy') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-lightbulb"></i> 전략
+                </a>
+                <a href="{{ url_for('settings.backtesting') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-clock-history"></i> 백테스팅
+                </a>
+                <a href="{{ url_for('settings.database') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-database"></i> 데이터베이스
+                </a>
+                <a href="{{ url_for('settings.indicators') }}" class="list-group-item list-group-item-action active">
+                    <i class="bi bi-bar-chart"></i> 지표
+                </a>
+                <a href="{{ url_for('settings.notification') }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-bell"></i> 알림
+                </a>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> 기술적 지표 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('settings.indicators') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <h6 class="mb-3">이동평균</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">SMA 기간 (쉼표로 구분)</label>
+                                <input type="text" class="form-control" name="sma_periods"
+                                       value="{{ config.get('sma_periods', [20, 50, 200]) | join(',') }}">
+                                <div class="form-text">예: 20,50,200</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">EMA 기간 (쉼표로 구분)</label>
+                                <input type="text" class="form-control" name="ema_periods"
+                                       value="{{ config.get('ema_periods', [12, 26]) | join(',') }}">
+                                <div class="form-text">예: 12,26</div>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">모멘텀 지표</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">RSI 기간</label>
+                                <input type="number" class="form-control" name="rsi_period" min="2" max="50"
+                                       value="{{ config.get('rsi_period', 14) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">MACD</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">Fast 기간</label>
+                                <input type="number" class="form-control" name="macd_fast" min="2" max="50"
+                                       value="{{ config.get('macd_fast', 12) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Slow 기간</label>
+                                <input type="number" class="form-control" name="macd_slow" min="2" max="50"
+                                       value="{{ config.get('macd_slow', 26) }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Signal 기간</label>
+                                <input type="number" class="form-control" name="macd_signal" min="2" max="50"
+                                       value="{{ config.get('macd_signal', 9) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">볼린저 밴드</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">기간</label>
+                                <input type="number" class="form-control" name="bollinger_period" min="5" max="50"
+                                       value="{{ config.get('bollinger_period', 20) }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">표준편차 배수</label>
+                                <input type="number" class="form-control" name="bollinger_std" min="1" max="4"
+                                       value="{{ config.get('bollinger_std', 2) }}">
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3">ATR</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">ATR 기간</label>
+                                <input type="number" class="form-control" name="atr_period" min="2" max="50"
+                                       value="{{ config.get('atr_period', 14) }}">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check"></i> 저장
+                            </button>
+                            <a href="{{ url_for('settings.index') }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

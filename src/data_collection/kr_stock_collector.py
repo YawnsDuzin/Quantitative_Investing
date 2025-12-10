@@ -137,6 +137,10 @@ class KoreanStockCollector:
                 df = df.reset_index()
                 df = df.rename(columns={'날짜': 'date'})
 
+                # Keep only the columns we need (remove 등락률, 거래대금, etc.)
+                columns_to_keep = ['date', 'open', 'high', 'low', 'close', 'volume']
+                df = df[[col for col in columns_to_keep if col in df.columns]]
+
             else:
                 # Use FinanceDataReader
                 df = fdr.DataReader(symbol, start_date, end_date)
@@ -252,6 +256,82 @@ class KoreanStockCollector:
         except Exception as e:
             logger.error(f"Error fetching market cap for {symbol}: {str(e)}")
             return pd.DataFrame()
+
+    def get_sector_mapping(self, market: str = "KOSPI") -> Dict[str, str]:
+        """
+        Get sector mapping for all stocks in a market.
+        Maps stock symbols to their sector names.
+
+        Args:
+            market: Market type - "KOSPI" or "KOSDAQ"
+
+        Returns:
+            Dictionary mapping symbol to sector name
+        """
+        if not self.use_pykrx:
+            logger.warning("Sector mapping requires pykrx")
+            return {}
+
+        try:
+            today = datetime.now().strftime("%Y%m%d")
+            sector_mapping = {}
+
+            # Get all sector indices for the market
+            sectors = stock.get_index_ticker_list(today, market=market)
+
+            # Skip the first few indices (broad market indices)
+            # and focus on industry-specific ones
+            for sector_code in sectors:
+                try:
+                    sector_name = stock.get_index_ticker_name(sector_code)
+                    # Get stocks in this sector
+                    components = stock.get_index_portfolio_deposit_file(sector_code, today)
+
+                    for symbol in components:
+                        # Only set if not already mapped (first match = most specific)
+                        if symbol not in sector_mapping:
+                            sector_mapping[symbol] = sector_name
+                except Exception:
+                    continue
+
+            logger.info(f"Built sector mapping for {len(sector_mapping)} stocks in {market}")
+            return sector_mapping
+
+        except Exception as e:
+            logger.error(f"Error building sector mapping: {str(e)}")
+            return {}
+
+    def get_stock_sector(self, symbol: str, market: str = "KOSPI") -> Optional[str]:
+        """
+        Get sector for a single stock.
+
+        Args:
+            symbol: Stock symbol
+            market: Market type
+
+        Returns:
+            Sector name or None
+        """
+        if not self.use_pykrx:
+            return None
+
+        try:
+            today = datetime.now().strftime("%Y%m%d")
+            sectors = stock.get_index_ticker_list(today, market=market)
+
+            for sector_code in sectors:
+                try:
+                    components = stock.get_index_portfolio_deposit_file(sector_code, today)
+                    if symbol in components:
+                        return stock.get_index_ticker_name(sector_code)
+                except Exception:
+                    continue
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting sector for {symbol}: {str(e)}")
+            return None
 
     def collect_multiple_stocks(self,
                                symbols: List[str],

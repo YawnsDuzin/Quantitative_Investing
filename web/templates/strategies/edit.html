@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}전략 수정 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pencil"></i> 전략 수정: {{ strategy.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('strategies.edit', id=strategy.id) }}">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Basic Info -->
+                        <h6 class="mb-3">기본 정보</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                {{ form.name.label(class="form-label") }}
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                                {% for error in form.name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.strategy_type.label(class="form-label") }}
+                                {{ form.strategy_type(class="form-select", id="strategy_type") }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows=3) }}
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                {{ form.market.label(class="form-label") }}
+                                {{ form.market(class="form-select") }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.rebalance_frequency.label(class="form-label") }}
+                                {{ form.rebalance_frequency(class="form-select") }}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Position Settings -->
+                        <h6 class="mb-3">포지션 설정</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                {{ form.max_positions.label(class="form-label") }}
+                                {{ form.max_positions(class="form-control", type="number") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.min_positions.label(class="form-label") }}
+                                {{ form.min_positions(class="form-control", type="number") }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.max_position_size.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.max_position_size(class="form-control", type="number", step="0.1") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Management -->
+                        <h6 class="mb-3">리스크 관리</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                {{ form.stop_loss.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.stop_loss(class="form-control", type="number", step="0.1") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.take_profit.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.take_profit(class="form-control", type="number", step="0.1") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-check">
+                                    {{ form.equal_weight(class="form-check-input") }}
+                                    {{ form.equal_weight.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Factor Weights -->
+                        <div id="factor-weights-section">
+                            <h6 class="mb-3">팩터 비중</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    {{ form.momentum_weight.label(class="form-label") }}
+                                    {{ form.momentum_weight(class="form-control", type="number", step="0.05", min="0", max="1") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.value_weight.label(class="form-label") }}
+                                    {{ form.value_weight(class="form-control", type="number", step="0.05", min="0", max="1") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.quality_weight.label(class="form-label") }}
+                                    {{ form.quality_weight(class="form-control", type="number", step="0.05", min="0", max="1") }}
+                                </div>
+                                <div class="col-md-3">
+                                    {{ form.size_weight.label(class="form-label") }}
+                                    {{ form.size_weight(class="form-control", type="number", step="0.05", min="0", max="1") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Visibility -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_public(class="form-check-input") }}
+                                {{ form.is_public.label(class="form-check-label") }}
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('strategies.view', id=strategy.id) }}" class="btn btn-secondary">취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

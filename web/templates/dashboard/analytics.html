@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}분석 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-graph-up"></i> 성과 분석</h2>
+
+    {% if backtests %}
+    <div class="row">
+        <!-- Strategy Comparison -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">전략별 성과 비교</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="strategyComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">수익률 분포</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="returnsDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategy Stats Table -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">전략별 통계</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>전략</th>
+                                    <th>실행 횟수</th>
+                                    <th>평균 수익률</th>
+                                    <th>평균 샤프비율</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, stats in strategy_stats.items() %}
+                                <tr>
+                                    <td><strong>{{ name }}</strong></td>
+                                    <td>{{ stats.count }}</td>
+                                    <td class="{{ 'text-success' if stats.avg_return > 0 else 'text-danger' }}">
+                                        {{ "%.1f"|format(stats.avg_return * 100) }}%
+                                    </td>
+                                    <td>{{ "%.2f"|format(stats.avg_sharpe) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Backtests -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">전체 백테스트 결과</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="backtest-table">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>전략</th>
+                                    <th>기간</th>
+                                    <th>연수익률</th>
+                                    <th>변동성</th>
+                                    <th>샤프비율</th>
+                                    <th>MDD</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bt in backtests %}
+                                <tr>
+                                    <td>{{ bt.name }}</td>
+                                    <td>{{ bt.strategy_name }}</td>
+                                    <td>{{ bt.start_date.strftime('%Y-%m-%d') }} ~ {{ bt.end_date.strftime('%Y-%m-%d') }}</td>
+                                    <td class="{{ 'text-success' if bt.annual_return and bt.annual_return > 0 else 'text-danger' }}">
+                                        {% if bt.annual_return %}{{ "%.1f"|format(bt.annual_return * 100) }}%{% else %}-{% endif %}
+                                    </td>
+                                    <td>{% if bt.volatility %}{{ "%.1f"|format(bt.volatility * 100) }}%{% else %}-{% endif %}</td>
+                                    <td>{% if bt.sharpe_ratio %}{{ "%.2f"|format(bt.sharpe_ratio) }}{% else %}-{% endif %}</td>
+                                    <td class="text-danger">{% if bt.max_drawdown %}{{ "%.1f"|format(bt.max_drawdown * 100) }}%{% else %}-{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <p class="lead text-muted mt-3">분석할 백테스트 결과가 없습니다.</p>
+        <a href="{{ url_for('backtest.new') }}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> 백테스트 실행하기
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if strategy_stats %}
+// Strategy Comparison Chart
+const strategyCtx = document.getElementById('strategyComparisonChart').getContext('2d');
+new Chart(strategyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ strategy_stats.keys()|list|tojson }},
+        datasets: [{
+            label: '평균 수익률 (%)',
+            data: [{% for s in strategy_stats.values() %}{{ (s.avg_return * 100)|round(1) }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: 'rgba(54, 162, 235, 0.8)'
+        }, {
+            label: '평균 샤프비율',
+            data: [{% for s in strategy_stats.values() %}{{ s.avg_sharpe|round(2) }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: 'rgba(255, 99, 132, 0.8)'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        }
+    }
+});
+
+// Returns Distribution Chart
+const returnsCtx = document.getElementById('returnsDistributionChart').getContext('2d');
+const returns = [{% for bt in backtests %}{% if bt.annual_return %}{{ (bt.annual_return * 100)|round(1) }}{% if not loop.last %},{% endif %}{% endif %}{% endfor %}];
+
+// Create histogram bins
+function createHistogram(data, binCount) {
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const binSize = (max - min) / binCount;
+    const bins = new Array(binCount).fill(0);
+    const labels = [];
+
+    for (let i = 0; i < binCount; i++) {
+        const binStart = min + i * binSize;
+        const binEnd = binStart + binSize;
+        labels.push(`${binStart.toFixed(0)}~${binEnd.toFixed(0)}%`);
+    }
+
+    data.forEach(value => {
+        const binIndex = Math.min(Math.floor((value - min) / binSize), binCount - 1);
+        bins[binIndex]++;
+    });
+
+    return { bins, labels };
+}
+
+const hist = createHistogram(returns, 8);
+new Chart(returnsCtx, {
+    type: 'bar',
+    data: {
+        labels: hist.labels,
+        datasets: [{
+            label: '백테스트 수',
+            data: hist.bins,
+            backgroundColor: 'rgba(75, 192, 192, 0.8)'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

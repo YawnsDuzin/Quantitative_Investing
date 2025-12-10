@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}기능 소개 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12 text-center mb-5">
+            <h1 class="display-5 fw-bold">기능 소개</h1>
+            <p class="lead text-muted">퀀트 투자를 위한 강력한 도구들</p>
+        </div>
+    </div>
+
+    <!-- Strategy Section -->
+    <div class="row align-items-center py-5">
+        <div class="col-lg-6">
+            <h2 class="fw-bold mb-4">
+                <i class="bi bi-lightbulb text-warning"></i> 투자 전략
+            </h2>
+            <p class="mb-3">다양한 팩터 기반 전략을 활용하여 체계적인 투자를 할 수 있습니다.</p>
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> <strong>모멘텀 전략</strong> - 상승 추세 종목 투자</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> <strong>가치 전략</strong> - 저평가 종목 발굴</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> <strong>퀄리티 전략</strong> - 우량 기업 선별</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> <strong>멀티팩터</strong> - 복합 팩터 활용</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> <strong>커스텀 전략</strong> - 나만의 전략 생성</li>
+            </ul>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">팩터 비중 설정 예시</h6>
+                    <div class="mb-3">
+                        <label class="form-label">모멘텀</label>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-primary" style="width: 40%">40%</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">가치</label>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" style="width: 30%">30%</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">퀄리티</label>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-info" style="width: 20%">20%</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">사이즈</label>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-warning" style="width: 10%">10%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backtesting Section -->
+    <div class="row align-items-center py-5">
+        <div class="col-lg-6 order-lg-2">
+            <h2 class="fw-bold mb-4">
+                <i class="bi bi-clock-history text-info"></i> 백테스팅
+            </h2>
+            <p class="mb-3">과거 데이터를 활용하여 전략의 성과를 검증할 수 있습니다.</p>
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 실제 거래 비용 반영 (수수료, 슬리피지)</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 리밸런싱 시뮬레이션</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 상세 성과 지표 (샤프비율, MDD 등)</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 거래 내역 분석</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 시각화 차트</li>
+            </ul>
+        </div>
+        <div class="col-lg-6 order-lg-1">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">성과 지표 예시</h6>
+                    <table class="table table-sm">
+                        <tr><td>연평균 수익률</td><td class="text-end text-success">+15.8%</td></tr>
+                        <tr><td>샤프 비율</td><td class="text-end">1.25</td></tr>
+                        <tr><td>최대 낙폭 (MDD)</td><td class="text-end text-danger">-18.3%</td></tr>
+                        <tr><td>승률</td><td class="text-end">58.2%</td></tr>
+                        <tr><td>변동성</td><td class="text-end">12.6%</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Section -->
+    <div class="row align-items-center py-5">
+        <div class="col-lg-6">
+            <h2 class="fw-bold mb-4">
+                <i class="bi bi-database text-primary"></i> 데이터 관리
+            </h2>
+            <p class="mb-3">한국과 미국 주식 시장의 가격 및 재무 데이터를 수집하고 관리합니다.</p>
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> KOSPI, KOSDAQ (한국 시장)</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> NYSE, NASDAQ (미국 시장)</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> OHLCV 가격 데이터</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> PER, PBR, ROE 등 재무 데이터</li>
+                <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 자동 데이터 업데이트</li>
+            </ul>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-6">
+                            <h3 class="text-primary">2,500+</h3>
+                            <p class="text-muted">한국 주식</p>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-primary">5,000+</h3>
+                            <p class="text-muted">미국 주식</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="row py-5">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">
+                <i class="bi bi-rocket-takeoff"></i> 지금 시작하기
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
