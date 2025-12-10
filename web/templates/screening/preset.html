@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block title %}프리셋 스크리닝 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('screening.index') }}">스크리닝</a></li>
+            <li class="breadcrumb-item active">프리셋 스크리닝</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-bookmark-star"></i> 프리셋 스크리닝</h2>
+    </div>
+
+    <div class="row">
+        <!-- 설정 패널 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card sticky-top" style="top: 80px;">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-gear"></i> 스크리닝 설정
+                </div>
+                <div class="card-body">
+                    <!-- 시장 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">시장</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="market" id="market-kr" value="KR" checked>
+                            <label class="btn btn-outline-primary" for="market-kr">
+                                <i class="bi bi-flag"></i> 한국
+                            </label>
+                            <input type="radio" class="btn-check" name="market" id="market-us" value="US">
+                            <label class="btn btn-outline-primary" for="market-us">
+                                <i class="bi bi-globe"></i> 미국
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 프리셋 선택 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">프리셋 전략</label>
+                        <select class="form-select" id="preset-select">
+                            <option value="">-- 프리셋 선택 --</option>
+                            {% for key, preset in presets.items() %}
+                            <option value="{{ key }}">{{ preset.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 프리셋 설명 -->
+                    <div id="preset-description" class="alert alert-info d-none">
+                        <strong id="preset-name"></strong>
+                        <p id="preset-desc" class="mb-0 small"></p>
+                    </div>
+
+                    <!-- 파라미터 폼 -->
+                    <div id="params-container" class="d-none">
+                        <hr>
+                        <h6><i class="bi bi-sliders"></i> 파라미터</h6>
+                        <div id="params-form"></div>
+                    </div>
+
+                    <hr>
+
+                    <!-- 실행 버튼 -->
+                    <button type="button" class="btn btn-primary btn-lg w-100" id="btn-run" disabled>
+                        <i class="bi bi-play-fill"></i> 스크리닝 실행
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 결과 패널 -->
+        <div class="col-lg-8">
+            <!-- 초기 상태 -->
+            <div id="initial-state" class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-funnel display-1 text-muted"></i>
+                    <h4 class="mt-3">프리셋을 선택하세요</h4>
+                    <p class="text-muted">
+                        왼쪽에서 프리셋 전략을 선택하고<br>
+                        파라미터를 조정한 후 스크리닝을 실행하세요.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 진행 상황 -->
+            <div id="progress-panel" class="card d-none">
+                <div class="card-header">
+                    <i class="bi bi-hourglass-split"></i> 스크리닝 진행 중
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             id="progress-bar" role="progressbar" style="width: 0%">
+                            0%
+                        </div>
+                    </div>
+                    <p id="progress-message" class="mb-0 text-muted text-center"></p>
+                </div>
+            </div>
+
+            <!-- 결과 테이블 -->
+            <div id="results-panel" class="card d-none">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-table"></i> 스크리닝 결과</span>
+                    <span class="badge bg-primary" id="results-count">0개</span>
+                </div>
+                <div class="card-body">
+                    <!-- 요약 -->
+                    <div id="results-summary" class="row text-center mb-4">
+                        <div class="col-4">
+                            <h4 id="total-stocks" class="text-muted">-</h4>
+                            <small class="text-muted">전체 종목</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="filtered-stocks" class="text-success">-</h4>
+                            <small class="text-muted">필터링 결과</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 id="filter-rate" class="text-primary">-</h4>
+                            <small class="text-muted">필터율</small>
+                        </div>
+                    </div>
+
+                    <!-- 결과 테이블 -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped" id="results-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>종목코드</th>
+                                    <th>종목명</th>
+                                    <th class="text-end">현재가</th>
+                                    <th class="text-end">등락률</th>
+                                    <th class="text-end">시가총액</th>
+                                    <th class="text-end">PER</th>
+                                    <th class="text-end">PBR</th>
+                                    <th class="text-end">ROE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PRESETS = {{ presets | tojson }};
+let currentResultId = null;
+let pollInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 프리셋 선택 이벤트
+    document.getElementById('preset-select').addEventListener('change', function() {
+        const presetName = this.value;
+        if (presetName && PRESETS[presetName]) {
+            showPresetInfo(PRESETS[presetName]);
+            document.getElementById('btn-run').disabled = false;
+        } else {
+            hidePresetInfo();
+            document.getElementById('btn-run').disabled = true;
+        }
+    });
+
+    // 실행 버튼 이벤트
+    document.getElementById('btn-run').addEventListener('click', runScreening);
+
+    // URL 파라미터로 프리셋 선택
+    const urlParams = new URLSearchParams(window.location.search);
+    const presetParam = urlParams.get('preset');
+    if (presetParam && PRESETS[presetParam]) {
+        document.getElementById('preset-select').value = presetParam;
+        showPresetInfo(PRESETS[presetParam]);
+        document.getElementById('btn-run').disabled = false;
+    }
+});
+
+function showPresetInfo(preset) {
+    document.getElementById('preset-name').textContent = preset.display_name;
+    document.getElementById('preset-desc').textContent = preset.description;
+    document.getElementById('preset-description').classList.remove('d-none');
+
+    // 파라미터 폼 생성
+    const paramsForm = document.getElementById('params-form');
+    paramsForm.innerHTML = '';
+
+    preset.parameters.forEach(param => {
+        const div = document.createElement('div');
+        div.className = 'mb-3';
+
+        let input;
+        if (param.type === 'bool') {
+            input = `
+                <select class="form-select" id="param-${param.name}" data-param="${param.name}">
+                    <option value="true" ${param.default ? 'selected' : ''}>예</option>
+                    <option value="false" ${!param.default ? 'selected' : ''}>아니오</option>
+                </select>
+            `;
+        } else {
+            input = `
+                <input type="number" class="form-control" id="param-${param.name}"
+                    data-param="${param.name}"
+                    value="${param.default}"
+                    step="${param.type === 'float' ? '0.1' : '1'}"
+                    ${param.min !== undefined ? `min="${param.min}"` : ''}
+                    ${param.max !== undefined ? `max="${param.max}"` : ''}>
+            `;
+        }
+
+        div.innerHTML = `
+            <label class="form-label" for="param-${param.name}">${param.display_name}</label>
+            ${input}
+        `;
+        paramsForm.appendChild(div);
+    });
+
+    document.getElementById('params-container').classList.remove('d-none');
+}
+
+function hidePresetInfo() {
+    document.getElementById('preset-description').classList.add('d-none');
+    document.getElementById('params-container').classList.add('d-none');
+}
+
+function getParams() {
+    const params = {};
+    document.querySelectorAll('#params-form input, #params-form select').forEach(el => {
+        const name = el.dataset.param;
+        let value = el.value;
+
+        if (el.type === 'number') {
+            value = el.step === '1' ? parseInt(value) : parseFloat(value);
+        } else if (el.tagName === 'SELECT' && (value === 'true' || value === 'false')) {
+            value = value === 'true';
+        }
+
+        params[name] = value;
+    });
+    return params;
+}
+
+async function runScreening() {
+    const presetName = document.getElementById('preset-select').value;
+    const market = document.querySelector('input[name="market"]:checked').value;
+    const params = getParams();
+
+    // UI 업데이트
+    document.getElementById('initial-state').classList.add('d-none');
+    document.getElementById('results-panel').classList.add('d-none');
+    document.getElementById('progress-panel').classList.remove('d-none');
+    document.getElementById('btn-run').disabled = true;
+
+    updateProgress(0, '스크리닝 시작 중...');
+
+    try {
+        const response = await fetch('/screening/api/run/preset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                preset_name: presetName,
+                market: market,
+                params: params
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            currentResultId = data.result_id;
+            pollProgress();
+        } else {
+            showError(data.error || '스크리닝 시작에 실패했습니다.');
+        }
+    } catch (error) {
+        showError('네트워크 오류: ' + error.message);
+    }
+}
+
+function pollProgress() {
+    pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/screening/api/status/${currentResultId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                updateProgress(data.progress, data.current_step);
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    loadResults();
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showError(data.error_message || '스크리닝에 실패했습니다.');
+                }
+            }
+        } catch (error) {
+            console.error('Poll error:', error);
+        }
+    }, 500);
+}
+
+function updateProgress(percentage, message) {
+    const bar = document.getElementById('progress-bar');
+    bar.style.width = percentage + '%';
+    bar.textContent = percentage + '%';
+    document.getElementById('progress-message').textContent = message || '';
+}
+
+async function loadResults() {
+    try {
+        const response = await fetch(`/screening/api/results/${currentResultId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            showResults(data.result);
+        } else {
+            showError('결과를 불러오는데 실패했습니다.');
+        }
+    } catch (error) {
+        showError('네트워크 오류: ' + error.message);
+    }
+}
+
+function showResults(result) {
+    document.getElementById('progress-panel').classList.add('d-none');
+    document.getElementById('results-panel').classList.remove('d-none');
+    document.getElementById('btn-run').disabled = false;
+
+    // 요약 정보
+    const totalStocks = result.total_stocks || 0;
+    const filteredCount = result.filtered_count || 0;
+    const filterRate = totalStocks > 0 ? ((filteredCount / totalStocks) * 100).toFixed(1) : 0;
+
+    document.getElementById('results-count').textContent = filteredCount + '개';
+    document.getElementById('total-stocks').textContent = totalStocks.toLocaleString();
+    document.getElementById('filtered-stocks').textContent = filteredCount.toLocaleString();
+    document.getElementById('filter-rate').textContent = filterRate + '%';
+
+    // 결과 테이블
+    const tbody = document.getElementById('results-body');
+    tbody.innerHTML = '';
+
+    const stocks = result.results || [];
+    if (stocks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">조건에 맞는 종목이 없습니다.</td></tr>';
+        return;
+    }
+
+    stocks.forEach((stock, index) => {
+        const changeClass = stock.change_rate > 0 ? 'text-danger' : (stock.change_rate < 0 ? 'text-primary' : '');
+        const changeIcon = stock.change_rate > 0 ? '▲' : (stock.change_rate < 0 ? '▼' : '-');
+
+        const marketCap = stock.market_cap ? (stock.market_cap / 100000000).toFixed(0) + '억' : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${stock.code}</code></td>
+            <td><strong>${stock.name}</strong></td>
+            <td class="text-end">${stock.price ? stock.price.toLocaleString() : '-'}</td>
+            <td class="text-end ${changeClass}">${changeIcon} ${Math.abs(stock.change_rate || 0).toFixed(2)}%</td>
+            <td class="text-end">${marketCap}</td>
+            <td class="text-end">${stock.per ? stock.per.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.pbr ? stock.pbr.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.roe ? stock.roe.toFixed(2) + '%' : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function showError(message) {
+    document.getElementById('progress-panel').classList.add('d-none');
+    document.getElementById('initial-state').classList.remove('d-none');
+    document.getElementById('btn-run').disabled = false;
+    alert('오류: ' + message);
+}
+</script>
+{% endblock %}

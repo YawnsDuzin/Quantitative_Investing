@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}스크리닝 결과 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('screening.index') }}">스크리닝</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('screening.history') }}">이력</a></li>
+            <li class="breadcrumb-item active">결과</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-table"></i> {{ result.name }}</h2>
+        <div>
+            {% if result.status == 'completed' %}
+            <button class="btn btn-outline-primary" onclick="exportCSV()">
+                <i class="bi bi-download"></i> CSV 다운로드
+            </button>
+            {% endif %}
+            <a href="{{ url_for('screening.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 돌아가기
+            </a>
+        </div>
+    </div>
+
+    <!-- 스크리닝 정보 -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> 스크리닝 정보
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th width="30%">유형</th>
+                                    <td>
+                                        {% if result.screening_type == 'preset' %}
+                                        <span class="badge bg-primary">프리셋</span> {{ result.preset_name }}
+                                        {% else %}
+                                        <span class="badge bg-success">커스텀</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>시장</th>
+                                    <td>{{ result.market }}</td>
+                                </tr>
+                                <tr>
+                                    <th>상태</th>
+                                    <td>
+                                        {% if result.status == 'completed' %}
+                                        <span class="badge bg-success">완료</span>
+                                        {% elif result.status == 'running' %}
+                                        <span class="badge bg-warning">실행중</span>
+                                        {% elif result.status == 'failed' %}
+                                        <span class="badge bg-danger">실패</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">대기</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th width="30%">생성일</th>
+                                    <td>{{ result.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>완료일</th>
+                                    <td>{{ result.completed_at.strftime('%Y-%m-%d %H:%M') if result.completed_at else '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>소요시간</th>
+                                    <td>
+                                        {% if result.started_at and result.completed_at %}
+                                        {{ (result.completed_at - result.started_at).total_seconds()|round(1) }}초
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 통계 -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-bar-chart"></i> 통계
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="text-muted">{{ result.total_stocks or 0 }}</h4>
+                            <small class="text-muted">전체 종목</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success">{{ result.filtered_count or 0 }}</h4>
+                            <small class="text-muted">필터링 결과</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-primary">
+                                {% if result.total_stocks and result.total_stocks > 0 %}
+                                {{ ((result.filtered_count or 0) / result.total_stocks * 100)|round(1) }}%
+                                {% else %}
+                                -
+                                {% endif %}
+                            </h4>
+                            <small class="text-muted">필터율</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 결과 테이블 -->
+    {% if result.status == 'completed' %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-table"></i> 스크리닝 결과</span>
+            <span class="badge bg-primary">{{ result.filtered_count or 0 }}개</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped" id="results-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>종목코드</th>
+                            <th>종목명</th>
+                            <th>섹터</th>
+                            <th class="text-end">현재가</th>
+                            <th class="text-end">등락률</th>
+                            <th class="text-end">시가총액</th>
+                            <th class="text-end">PER</th>
+                            <th class="text-end">PBR</th>
+                            <th class="text-end">ROE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% elif result.status == 'failed' %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>스크리닝 실패:</strong> {{ result.error_message or '알 수 없는 오류' }}
+    </div>
+    {% elif result.status == 'running' %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4>스크리닝 진행 중...</h4>
+            <p class="text-muted">{{ result.current_step or '처리 중' }}</p>
+            <div class="progress mx-auto" style="width: 300px; height: 20px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                     style="width: {{ result.progress or 0 }}%">
+                    {{ result.progress or 0 }}%
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const resultData = {{ result.to_dict() | tojson }};
+
+    if (resultData.status === 'completed' && resultData.results) {
+        renderResults(resultData.results);
+    }
+
+    {% if result.status == 'running' %}
+    // 실행 중이면 주기적으로 새로고침
+    setTimeout(() => location.reload(), 2000);
+    {% endif %}
+});
+
+function renderResults(stocks) {
+    const tbody = document.getElementById('results-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (stocks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">조건에 맞는 종목이 없습니다.</td></tr>';
+        return;
+    }
+
+    stocks.forEach((stock, index) => {
+        const changeClass = stock.change_rate > 0 ? 'text-danger' : (stock.change_rate < 0 ? 'text-primary' : '');
+        const changeIcon = stock.change_rate > 0 ? '▲' : (stock.change_rate < 0 ? '▼' : '-');
+        const marketCap = stock.market_cap ? (stock.market_cap / 100000000).toFixed(0) + '억' : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${stock.code}</code></td>
+            <td><strong>${stock.name}</strong></td>
+            <td>${stock.sector || '-'}</td>
+            <td class="text-end">${stock.price ? stock.price.toLocaleString() : '-'}</td>
+            <td class="text-end ${changeClass}">${changeIcon} ${Math.abs(stock.change_rate || 0).toFixed(2)}%</td>
+            <td class="text-end">${marketCap}</td>
+            <td class="text-end">${stock.per ? stock.per.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.pbr ? stock.pbr.toFixed(2) : '-'}</td>
+            <td class="text-end">${stock.roe ? stock.roe.toFixed(2) + '%' : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function exportCSV() {
+    const resultData = {{ result.to_dict() | tojson }};
+    const stocks = resultData.results || [];
+
+    if (stocks.length === 0) {
+        alert('다운로드할 데이터가 없습니다.');
+        return;
+    }
+
+    const headers = ['종목코드', '종목명', '섹터', '현재가', '등락률', '시가총액', 'PER', 'PBR', 'ROE'];
+    const rows = stocks.map(s => [
+        s.code,
+        s.name,
+        s.sector || '',
+        s.price || '',
+        s.change_rate || '',
+        s.market_cap ? (s.market_cap / 100000000).toFixed(0) : '',
+        s.per || '',
+        s.pbr || '',
+        s.roe || ''
+    ]);
+
+    let csv = '\uFEFF' + headers.join(',') + '\n';
+    rows.forEach(row => {
+        csv += row.map(v => `"${v}"`).join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `screening_${resultData.id}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

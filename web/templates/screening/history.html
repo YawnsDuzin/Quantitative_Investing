@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}스크리닝 이력 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('screening.index') }}">스크리닝</a></li>
+            <li class="breadcrumb-item active">이력</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-clock-history"></i> 스크리닝 이력</h2>
+        <a href="{{ url_for('screening.index') }}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> 새 스크리닝
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if results.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>스크리닝명</th>
+                            <th>유형</th>
+                            <th>시장</th>
+                            <th>결과</th>
+                            <th>상태</th>
+                            <th>생성일</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results.items %}
+                        <tr>
+                            <td>{{ result.id }}</td>
+                            <td>
+                                <strong>{{ result.name }}</strong>
+                                {% if result.description %}
+                                <br><small class="text-muted">{{ result.description[:50] }}...</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.screening_type == 'preset' %}
+                                <span class="badge bg-primary">프리셋</span>
+                                <small>{{ result.preset_name }}</small>
+                                {% else %}
+                                <span class="badge bg-success">커스텀</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ result.market }}</td>
+                            <td>
+                                {% if result.status == 'completed' %}
+                                <strong class="text-success">{{ result.filtered_count }}</strong>
+                                <span class="text-muted">/ {{ result.total_stocks }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.status == 'completed' %}
+                                <span class="badge bg-success">완료</span>
+                                {% elif result.status == 'running' %}
+                                <span class="badge bg-warning">
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                    실행중
+                                </span>
+                                {% elif result.status == 'failed' %}
+                                <span class="badge bg-danger">실패</span>
+                                {% else %}
+                                <span class="badge bg-secondary">대기</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ result.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if result.status == 'completed' %}
+                                <a href="{{ url_for('screening.results', result_id=result.id) }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> 보기
+                                </a>
+                                {% elif result.status == 'running' %}
+                                <a href="{{ url_for('screening.results', result_id=result.id) }}"
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-hourglass-split"></i> 확인
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            {% if results.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if results.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('screening.history', page=results.prev_num) }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in results.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                        <li class="page-item {% if page_num == results.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('screening.history', page=page_num) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if results.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('screening.history', page=results.next_num) }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox display-1"></i>
+                <h4 class="mt-3">스크리닝 이력이 없습니다</h4>
+                <p>새로운 스크리닝을 실행해보세요.</p>
+                <a href="{{ url_for('screening.index') }}" class="btn btn-primary">
+                    <i class="bi bi-play"></i> 스크리닝 시작
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
