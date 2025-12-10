@@ -18,6 +18,9 @@
 | [10. 웹 인터페이스](./10-web-interface.md) | Flask 웹 대시보드 사용법 |
 | [11. 라즈베리파이 설치](./11-raspberry-pi-setup.md) | Raspberry Pi 설치 및 운영 가이드 |
 | [12. 윈도우 설치](./12-windows-setup.md) | Windows 설치 및 운영 가이드 |
+| [13. 데이터 수집 상세](./13-data-collection.md) | 수집 데이터 항목 및 방법 상세 가이드 |
+| [14. 주식 스크리닝](./14-screening.md) | 스크리닝 항목 및 처리 방법 상세 가이드 |
+| [15. 백테스팅 상세](./15-backtesting.md) | 백테스팅 항목 및 처리 방법 상세 가이드 |
 
 ## 시스템 아키텍처
 
@@ -30,10 +33,13 @@ Quantitative_Investing/
 ├── src/
 │   ├── data_collection/     # 데이터 수집 모듈
 │   │   ├── kr_stock_collector.py   # 한국 주식
-│   │   └── us_stock_collector.py   # 미국 주식
+│   │   ├── us_stock_collector.py   # 미국 주식
+│   │   └── extended_collector.py   # 확장 데이터 수집
 │   ├── data_processing/     # 데이터 처리 모듈
 │   │   ├── indicators.py           # 기술적 지표
 │   │   └── feature_engineering.py  # 팩터 계산
+│   ├── screening/           # 스크리닝 모듈
+│   │   └── stock_screener.py       # 종목 스크리닝
 │   ├── strategies/          # 투자 전략 모듈
 │   │   ├── base_strategy.py        # 기본 전략 클래스
 │   │   └── quant_strategies.py     # 퀀트 전략들
@@ -57,9 +63,25 @@ Quantitative_Investing/
 ### 1. 데이터 수집
 - **한국 시장**: KOSPI, KOSDAQ (pykrx, FinanceDataReader 사용)
 - **미국 시장**: NYSE, NASDAQ (yfinance 사용)
-- 가격 데이터 (OHLCV), 펀더멘털 데이터, 시가총액 데이터
+- **기본 데이터**: 가격 (OHLCV), 펀더멘털 (PER, PBR, ROE 등), 시가총액
+- **확장 데이터**:
+  - 밸류에이션 (PEG, EV/EBITDA, PSR 등)
+  - 수익성 (ROA, 마진율 등)
+  - 성장 (매출/이익 성장률)
+  - 현금흐름 (OCF, FCF, FCF Yield)
+  - 배당 (수익률, 배당성향)
+  - 리스크 (베타, 52주 고저)
+  - 소유구조 (내부자, 기관 지분)
+  - 애널리스트 (목표가, 추천 등급)
+  - 재무 스코어 (Piotroski F-Score, Altman Z-Score)
 
-### 2. 팩터 분석
+### 2. 주식 스크리닝
+- **80개 이상의 스크리닝 항목**
+- **다양한 필터 연산자**: 초과/미만, 범위, 상위/하위 N%, 목록 포함/제외
+- **사전 정의 템플릿**: 가치주, 성장주, 우량주, 배당주, 모멘텀 등
+- **투자 스타일별 프리셋**: 워렌 버핏, 피터 린치, 딥밸류 등
+
+### 3. 팩터 분석
 - **모멘텀 팩터**: 12개월 수익률 (최근 1개월 제외)
 - **가치 팩터**: PBR, PER 기반
 - **퀄리티 팩터**: ROE, 부채비율 기반

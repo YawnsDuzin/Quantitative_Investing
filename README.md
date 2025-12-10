@@ -97,11 +97,14 @@ Quantitative_Investing/
 │   └── forms/                # WTForms 폼
 ├── src/                       # 소스 코드
 │   ├── data_collection/      # 데이터 수집
-│   │   ├── kr_stock_collector.py
-│   │   └── us_stock_collector.py
+│   │   ├── kr_stock_collector.py     # 한국 주식 수집
+│   │   ├── us_stock_collector.py     # 미국 주식 수집
+│   │   └── extended_collector.py     # 확장 데이터 수집
 │   ├── data_processing/      # 데이터 전처리
 │   │   ├── indicators.py
 │   │   └── feature_engineering.py
+│   ├── screening/            # 주식 스크리닝
+│   │   └── stock_screener.py         # 종목 스크리닝
 │   ├── strategies/           # 투자 전략
 │   │   ├── base_strategy.py
 │   │   └── quant_strategies.py
