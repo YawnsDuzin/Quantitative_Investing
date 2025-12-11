@@ -202,18 +202,38 @@ def collect_kr():
                         sector = sector_mapping.get(code)
 
                         # Save to stock_info table with sector
-                        with db.engine.begin() as conn:
-                            conn.execute(text("""
-                                INSERT OR REPLACE INTO stock_info
-                                (symbol, name, market, sector, last_updated)
-                                VALUES (:symbol, :name, :market, :sector, :last_updated)
-                            """), {
-                                'symbol': code,
-                                'name': stock_name,
-                                'market': mkt,
-                                'sector': sector,
-                                'last_updated': datetime.now().isoformat()
-                            })
+                        try:
+                            with db.engine.begin() as conn:
+                                if db.db_type == 'postgresql':
+                                    conn.execute(text("""
+                                        INSERT INTO stock_info (symbol, name, market, sector, last_updated)
+                                        VALUES (:symbol, :name, :market, :sector, :last_updated)
+                                        ON CONFLICT (symbol) DO UPDATE SET
+                                            name = EXCLUDED.name,
+                                            market = EXCLUDED.market,
+                                            sector = EXCLUDED.sector,
+                                            last_updated = EXCLUDED.last_updated
+                                    """), {
+                                        'symbol': code,
+                                        'name': stock_name,
+                                        'market': mkt,
+                                        'sector': sector,
+                                        'last_updated': datetime.now().isoformat()
+                                    })
+                                else:
+                                    conn.execute(text("""
+                                        INSERT OR REPLACE INTO stock_info
+                                        (symbol, name, market, sector, last_updated)
+                                        VALUES (:symbol, :name, :market, :sector, :last_updated)
+                                    """), {
+                                        'symbol': code,
+                                        'name': stock_name,
+                                        'market': mkt,
+                                        'sector': sector,
+                                        'last_updated': datetime.now().isoformat()
+                                    })
+                        except Exception as e_info:
+                            pass  # Skip stock_info errors
 
                         collected_count += 1
                 except Exception as e:
@@ -318,19 +338,41 @@ def collect_us():
                         industry = stock_info.get('industry')
 
                         # Save to stock_info table with exchange-based market
-                        with db.engine.begin() as conn:
-                            conn.execute(text("""
-                                INSERT OR REPLACE INTO stock_info
-                                (symbol, name, market, sector, industry, last_updated)
-                                VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
-                            """), {
-                                'symbol': ticker,
-                                'name': stock_name,
-                                'market': market_name,
-                                'sector': sector,
-                                'industry': industry,
-                                'last_updated': datetime.now().isoformat()
-                            })
+                        try:
+                            with db.engine.begin() as conn:
+                                if db.db_type == 'postgresql':
+                                    conn.execute(text("""
+                                        INSERT INTO stock_info (symbol, name, market, sector, industry, last_updated)
+                                        VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
+                                        ON CONFLICT (symbol) DO UPDATE SET
+                                            name = EXCLUDED.name,
+                                            market = EXCLUDED.market,
+                                            sector = EXCLUDED.sector,
+                                            industry = EXCLUDED.industry,
+                                            last_updated = EXCLUDED.last_updated
+                                    """), {
+                                        'symbol': ticker,
+                                        'name': stock_name,
+                                        'market': market_name,
+                                        'sector': sector,
+                                        'industry': industry,
+                                        'last_updated': datetime.now().isoformat()
+                                    })
+                                else:
+                                    conn.execute(text("""
+                                        INSERT OR REPLACE INTO stock_info
+                                        (symbol, name, market, sector, industry, last_updated)
+                                        VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
+                                    """), {
+                                        'symbol': ticker,
+                                        'name': stock_name,
+                                        'market': market_name,
+                                        'sector': sector,
+                                        'industry': industry,
+                                        'last_updated': datetime.now().isoformat()
+                                    })
+                        except Exception as e_info:
+                            pass  # Skip stock_info errors
 
                         collected_count += 1
                 except Exception as e:
@@ -516,17 +558,36 @@ def collect_all():
                                     db.save_stock_prices(df, if_exists='append')
 
                                     stock_name = names.get(ticker, ticker)
-                                    with db.engine.begin() as conn:
-                                        conn.execute(text("""
-                                            INSERT OR REPLACE INTO stock_info
-                                            (symbol, name, market, last_updated)
-                                            VALUES (:symbol, :name, :market, :last_updated)
-                                        """), {
-                                            'symbol': ticker,
-                                            'name': stock_name,
-                                            'market': market,
-                                            'last_updated': datetime.now().isoformat()
-                                        })
+                                    # Use PostgreSQL compatible upsert
+                                    try:
+                                        with db.engine.begin() as conn:
+                                            if db.db_type == 'postgresql':
+                                                conn.execute(text("""
+                                                    INSERT INTO stock_info (symbol, name, market, last_updated)
+                                                    VALUES (:symbol, :name, :market, :last_updated)
+                                                    ON CONFLICT (symbol) DO UPDATE SET
+                                                        name = EXCLUDED.name,
+                                                        market = EXCLUDED.market,
+                                                        last_updated = EXCLUDED.last_updated
+                                                """), {
+                                                    'symbol': ticker,
+                                                    'name': stock_name,
+                                                    'market': market,
+                                                    'last_updated': datetime.now().isoformat()
+                                                })
+                                            else:
+                                                conn.execute(text("""
+                                                    INSERT OR REPLACE INTO stock_info
+                                                    (symbol, name, market, last_updated)
+                                                    VALUES (:symbol, :name, :market, :last_updated)
+                                                """), {
+                                                    'symbol': ticker,
+                                                    'name': stock_name,
+                                                    'market': market,
+                                                    'last_updated': datetime.now().isoformat()
+                                                })
+                                    except Exception as e_info:
+                                        pass  # Skip stock_info errors
                                     market_collected += 1
                             else:
                                 df = us_collector.get_price_data(ticker, start, end)
@@ -539,19 +600,42 @@ def collect_all():
                                     sector = stock_info.get('sector')
                                     industry = stock_info.get('industry')
 
-                                    with db.engine.begin() as conn:
-                                        conn.execute(text("""
-                                            INSERT OR REPLACE INTO stock_info
-                                            (symbol, name, market, sector, industry, last_updated)
-                                            VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
-                                        """), {
-                                            'symbol': ticker,
-                                            'name': stock_name,
-                                            'market': market,
-                                            'sector': sector,
-                                            'industry': industry,
-                                            'last_updated': datetime.now().isoformat()
-                                        })
+                                    # Use PostgreSQL compatible upsert
+                                    try:
+                                        with db.engine.begin() as conn:
+                                            if db.db_type == 'postgresql':
+                                                conn.execute(text("""
+                                                    INSERT INTO stock_info (symbol, name, market, sector, industry, last_updated)
+                                                    VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
+                                                    ON CONFLICT (symbol) DO UPDATE SET
+                                                        name = EXCLUDED.name,
+                                                        market = EXCLUDED.market,
+                                                        sector = EXCLUDED.sector,
+                                                        industry = EXCLUDED.industry,
+                                                        last_updated = EXCLUDED.last_updated
+                                                """), {
+                                                    'symbol': ticker,
+                                                    'name': stock_name,
+                                                    'market': market,
+                                                    'sector': sector,
+                                                    'industry': industry,
+                                                    'last_updated': datetime.now().isoformat()
+                                                })
+                                            else:
+                                                conn.execute(text("""
+                                                    INSERT OR REPLACE INTO stock_info
+                                                    (symbol, name, market, sector, industry, last_updated)
+                                                    VALUES (:symbol, :name, :market, :sector, :industry, :last_updated)
+                                                """), {
+                                                    'symbol': ticker,
+                                                    'name': stock_name,
+                                                    'market': market,
+                                                    'sector': sector,
+                                                    'industry': industry,
+                                                    'last_updated': datetime.now().isoformat()
+                                                })
+                                    except Exception as e_info:
+                                        pass  # Skip stock_info errors
                                     market_collected += 1
                         except Exception as e:
                             pass  # Skip failed stocks

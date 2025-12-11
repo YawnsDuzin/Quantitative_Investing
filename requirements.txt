@@ -36,6 +36,7 @@ vectorbt>=0.25.0
 
 # Database
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
 pymysql>=1.1.0
 
 # Configuration

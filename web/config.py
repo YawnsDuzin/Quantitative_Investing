@@ -15,13 +15,14 @@ class Config:
     # Secret key for session management
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'quant-investing-secret-key-change-in-production'
 
-    # Database
+    # Database - PostgreSQL
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f"sqlite:///{BASE_DIR / 'data' / 'database' / 'web_app.db'}"
+        'postgresql://postgres:postgres@localhost:5432/quant_web'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Quantitative system database path
-    QUANT_DB_PATH = BASE_DIR / 'data' / 'database' / 'quant_investing.db'
+    # Quantitative system database connection
+    QUANT_DB_URI = os.environ.get('QUANT_DATABASE_URL') or \
+        'postgresql://postgres:postgres@localhost:5432/quant_investing'
 
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
@@ -51,6 +52,10 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     TESTING = False
+
+    # PostgreSQL for development
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'postgresql://postgres:postgres@localhost:5432/quant_web'
 
     # More verbose logging in development
     LOG_LEVEL = 'DEBUG'
@@ -90,8 +95,9 @@ class TestingConfig(Config):
     DEBUG = True
     TESTING = True
 
-    # Use in-memory database for testing
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # Use separate PostgreSQL database for testing
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
+        'postgresql://postgres:postgres@localhost:5432/quant_web_test'
 
     # Disable CSRF for testing
     WTF_CSRF_ENABLED = False

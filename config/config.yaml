@@ -58,14 +58,16 @@ backtesting:
 
 # Database Settings
 database:
-  type: "sqlite"  # sqlite, postgresql, mysql
-  path: "data/database/quant_investing.db"
-  # For PostgreSQL/MySQL
-  # host: "localhost"
-  # port: 5432
-  # name: "quant_investing"
-  # user: "user"
-  # password: "password"
+  type: "postgresql"  # sqlite, postgresql, mysql
+  # For PostgreSQL
+  host: "localhost"
+  port: 5432
+  name: "quant_investing"
+  user: "postgres"
+  password: "postgres"
+  # For SQLite (if needed)
+  # type: "sqlite"
+  # path: "data/database/quant_investing.db"
 
 # Logging Settings
 logging:

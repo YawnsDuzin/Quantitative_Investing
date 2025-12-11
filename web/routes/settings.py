@@ -157,7 +157,7 @@ def database():
 
     if request.method == 'POST':
         try:
-            db_type = request.form.get('db_type', 'sqlite')
+            db_type = request.form.get('db_type', 'postgresql')
             config['database'] = {'type': db_type}
 
             if db_type == 'sqlite':
@@ -166,8 +166,8 @@ def database():
                 config['database']['host'] = request.form.get('db_host', 'localhost')
                 config['database']['port'] = int(request.form.get('db_port', 5432 if db_type == 'postgresql' else 3306))
                 config['database']['name'] = request.form.get('db_name', 'quant_investing')
-                config['database']['user'] = request.form.get('db_user', '')
-                config['database']['password'] = request.form.get('db_password', '')
+                config['database']['user'] = request.form.get('db_user', 'postgres')
+                config['database']['password'] = request.form.get('db_password', 'postgres')
 
             if save_config(config):
                 flash('데이터베이스 설정이 저장되었습니다.', 'success')

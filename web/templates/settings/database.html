@@ -40,21 +40,14 @@
                         <div class="mb-4">
                             <label class="form-label">데이터베이스 유형</label>
                             <select class="form-select" name="db_type" id="db_type">
+                                <option value="postgresql" {{ 'selected' if config.get('type', 'postgresql') == 'postgresql' }}>PostgreSQL (권장)</option>
                                 <option value="sqlite" {{ 'selected' if config.get('type') == 'sqlite' }}>SQLite</option>
-                                <option value="postgresql" {{ 'selected' if config.get('type') == 'postgresql' }}>PostgreSQL</option>
                                 <option value="mysql" {{ 'selected' if config.get('type') == 'mysql' }}>MySQL</option>
                             </select>
                         </div>
 
-                        <!-- SQLite Settings -->
-                        <div id="sqlite-settings" class="mb-4">
-                            <label class="form-label">데이터베이스 파일 경로</label>
-                            <input type="text" class="form-control" name="db_path"
-                                   value="{{ config.get('path', 'data/database/quant_investing.db') }}">
-                        </div>
-
                         <!-- PostgreSQL/MySQL Settings -->
-                        <div id="sql-settings" style="display: none;">
+                        <div id="sql-settings">
                             <div class="row mb-3">
                                 <div class="col-md-8">
                                     <label class="form-label">호스트</label>
@@ -76,14 +69,21 @@
                                 <div class="col-md-6">
                                     <label class="form-label">사용자 이름</label>
                                     <input type="text" class="form-control" name="db_user"
-                                           value="{{ config.get('user', '') }}">
+                                           value="{{ config.get('user', 'postgres') }}">
                                 </div>
                             </div>
                             <div class="mb-4">
                                 <label class="form-label">비밀번호</label>
                                 <input type="password" class="form-control" name="db_password"
-                                       value="{{ config.get('password', '') }}">
+                                       value="{{ config.get('password', 'postgres') }}">
                             </div>
+                        </div>
+
+                        <!-- SQLite Settings -->
+                        <div id="sqlite-settings" class="mb-4" style="display: none;">
+                            <label class="form-label">데이터베이스 파일 경로</label>
+                            <input type="text" class="form-control" name="db_path"
+                                   value="{{ config.get('path', 'data/database/quant_investing.db') }}">
                         </div>
 
                         <div class="alert alert-warning">
@@ -114,6 +114,13 @@ document.getElementById('db_type').addEventListener('change', function() {
     } else {
         document.getElementById('sqlite-settings').style.display = 'none';
         document.getElementById('sql-settings').style.display = 'block';
+        // Update default port based on database type
+        var portInput = document.querySelector('input[name="db_port"]');
+        if (this.value === 'postgresql') {
+            portInput.value = portInput.value || 5432;
+        } else if (this.value === 'mysql') {
+            portInput.value = portInput.value || 3306;
+        }
     }
 });
 

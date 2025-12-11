@@ -44,9 +44,9 @@ def create_app(config_name=None):
     except OSError:
         pass
 
-    # Ensure database directory exists
-    db_path = Path(app.config.get('QUANT_DB_PATH', 'data/database'))
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+    # Ensure data directories exist
+    data_dir = Path('data/database')
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize Flask extensions
     db.init_app(app)
@@ -86,23 +86,25 @@ def create_app(config_name=None):
 
         # Add new columns to existing tables if needed (for progress tracking)
         try:
-            from sqlalchemy import text
-            with db.engine.connect() as conn:
-                # Check if progress column exists in backtest_results
-                result = conn.execute(text("PRAGMA table_info(backtest_results)"))
-                columns = [row[1] for row in result.fetchall()]
+            from sqlalchemy import text, inspect
+            inspector = inspect(db.engine)
 
-                if 'progress' not in columns:
-                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN progress INTEGER DEFAULT 0"))
-                if 'current_step' not in columns:
-                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN current_step VARCHAR(100)"))
-                if 'total_days' not in columns:
-                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN total_days INTEGER"))
-                if 'processed_days' not in columns:
-                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN processed_days INTEGER DEFAULT 0"))
-                if 'started_at' not in columns:
-                    conn.execute(text("ALTER TABLE backtest_results ADD COLUMN started_at DATETIME"))
-                conn.commit()
+            # Check if backtest_results table exists
+            if 'backtest_results' in inspector.get_table_names():
+                columns = [col['name'] for col in inspector.get_columns('backtest_results')]
+
+                with db.engine.connect() as conn:
+                    if 'progress' not in columns:
+                        conn.execute(text("ALTER TABLE backtest_results ADD COLUMN progress INTEGER DEFAULT 0"))
+                    if 'current_step' not in columns:
+                        conn.execute(text("ALTER TABLE backtest_results ADD COLUMN current_step VARCHAR(100)"))
+                    if 'total_days' not in columns:
+                        conn.execute(text("ALTER TABLE backtest_results ADD COLUMN total_days INTEGER"))
+                    if 'processed_days' not in columns:
+                        conn.execute(text("ALTER TABLE backtest_results ADD COLUMN processed_days INTEGER DEFAULT 0"))
+                    if 'started_at' not in columns:
+                        conn.execute(text("ALTER TABLE backtest_results ADD COLUMN started_at TIMESTAMP"))
+                    conn.commit()
         except Exception as e:
             app.logger.warning(f"Migration warning: {e}")
 
